@@ -1,6 +1,0 @@
-{
-  "name": "Dump.cs Smart RVA Finder",
-  "description": "An ultra-fast offline browser utility to parse Unity dump.cs files, map custom feature names to function identifiers, and instantly extract RVA offsets for validated return types.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
