@@ -1,0 +1,4172 @@
+import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import { 
+  Upload, 
+  Search, 
+  Trash2, 
+  Copy, 
+  Check, 
+  Info, 
+  Sparkles, 
+  Flame, 
+  RefreshCw, 
+  ArrowLeft, 
+  Download, 
+  CheckCircle2, 
+  Terminal, 
+  Grid, 
+  FileCode,
+  X,
+  FileCheck2,
+  Binary,
+  ChevronUp,
+  ChevronDown,
+  Activity,
+  Bone,
+  Crosshair
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+
+// Define SearchResult structure for display (strictly matching requirements)
+interface FeatureResult {
+  featureName: string;
+  rva: string;
+}
+
+// Predefined Smart Feature Mapping database
+const SMART_MAPPINGS = [
+  { func: "IsHighFPS120Open", feature: "120 FPS Unlocker", type: "bool" },
+  { func: "get_CanBeLockedByAimAssist", feature: "Aim Assist", type: "bool" },
+  { func: "SetAimRotation", feature: "Aimbot Use", type: "void" },
+  { func: "SyncWeaponAmmoInClip", feature: "Ammo In Clip", type: "void" },
+  { func: "SetupModule", feature: "Black Body", type: "void" },
+  { func: "get_IsSwimSurf", feature: "Camera Hack", type: "bool" },
+  { func: "get_OffsetForNormal", feature: "Camera View (Zoom Out)", type: "float" },
+  { func: "get_UserGems", feature: "Diamond Hack", type: "int" },
+  { func: "GetDisableFriendSpectateSetting", feature: "Disable Spectate", type: "bool" },
+  { func: "ADBBMDMEFNO", feature: "Double Gun", type: "bool" },
+  { func: "get_FSModeUseMedikitFasterRate", feature: "Fast Blood Wrap", type: "float" },
+  { func: "get_InSwapWeaponCD", feature: "Fast Gun", type: "float" },
+  { func: "get_FSModeUseMedikitFasterRate", feature: "Fast Medkit (2.25s)", type: "float" },
+  { func: "get_FastAutoReloadSpeed", feature: "Fast Reload", type: "float" },
+  { func: "OnStartChangeWeapon", feature: "Fast Weapon Switch", type: "void" },
+  { func: "IsFemale", feature: "Female Model Hack", type: "bool" },
+  { func: "AOCFOHFIAAM", feature: "Fix Crash", type: "bool" },
+  { func: "BNFAGNBHHIF", feature: "Ghost Hack", type: "bool" },
+  { func: "EAGIPMCDBIF", feature: "Ghost Hack 2", type: "bool" },
+  { func: "get_IsGod", feature: "Gold Body", type: "bool" },
+  { func: "get_UserCoins", feature: "Gold Hack", type: "int" },
+  { func: "get_fog", feature: "HD Map / No Fog", type: "float" },
+  { func: "get_MaxJumpHeight", feature: "High Jump", type: "float" },
+  { func: "IsOnlineGame", feature: "Lobby Kill", type: "bool" },
+  { func: "OnPreparationCancel", feature: "Medkit Run", type: "void" },
+  { func: "IsFreeMove", feature: "Movement Shoot", type: "bool" },
+  { func: "IsPlayerReadyNeedDelay", feature: "No Delay", type: "bool" },
+  { func: "GetScatterRate", feature: "No Recoil", type: "float" },
+  { func: "IsSightingUIAvailable", feature: "No Scope", type: "bool" },
+  { func: "get_IsSpecialName", feature: "NPC Name", type: "bool" },
+  { func: "get_ResetGuest", feature: "Reset Guest", type: "bool" },
+  { func: "IsFreeMove", feature: "Run & Shoot", type: "bool" },
+  { func: "RequestStartSwimmingSurfing", feature: "Run Under Water", type: "bool" },
+  { func: "GetWeaponRunSpeedScale", feature: "Speed Hack", type: "float" },
+  { func: "LHGGPDLOPAH", feature: "Teleport Kill", type: "bool" },
+  { func: "get_IsAmmoFree", feature: "Unlimited Ammo", type: "bool" },
+  { func: "IsUnlimitedGloowall", feature: "Unlimited Gloo Wall", type: "bool" },
+  { func: "IsUnlimitedThrowables", feature: "Unlimited Grenades", type: "bool" },
+  { func: "IsCelebrity", feature: "V Badge", type: "bool" },
+  { func: "UseHighQualityAvatar", feature: "White Body", type: "void" },
+  { func: "MoveNext", feature: "White Body", type: "bool" }
+];
+
+// Extract unique features
+const UNIQUE_FEATURES = Array.from(new Set(SMART_MAPPINGS.map(m => m.feature))).sort();
+
+// Predefined BONES targets and their string signatures
+const BONE_TARGETS = [
+  { name: 'Head', stringName: 'PEMOFNFCLFB' },
+  { name: 'Hip', stringName: 'DIDHPFKMJJE' },
+  { name: 'Spine', stringName: 'KAKOKIHEPCF' },
+  { name: 'Root', stringName: 'KNFKIDHJCCO' },
+  { name: 'LeftAnkle', stringName: 'BOHFCEHMJBD' },
+  { name: 'RightAnkle', stringName: 'BIPBNNIFCNO' },
+  { name: 'LeftFoot', stringName: 'JLLMBADGKJP' },
+  { name: 'RightFoot', stringName: 'INHGPBHOKPF' },
+  { name: 'LeftShoulder', stringName: 'NBHOEOOCIIG' },
+  { name: 'RightShoulder', stringName: 'OEJFBHIIBBG' },
+  { name: 'RightHand', stringName: 'DIHJDDNIJHP' },
+  { name: 'LeftHand', stringName: 'PNPBBNDANEM' },
+  { name: 'RightElbow', stringName: 'KMIANNCLNOJ' },
+  { name: 'LeftElbow', stringName: 'KNBJLEHOPIL' },
+  { name: 'Collider', stringName: 'NFDNMIOPILM' }
+];
+
+interface IntPatchValue {
+  decimal: string;
+  hex: string;
+}
+
+const INT_PATCH_VALUES: IntPatchValue[] = [
+  { decimal: "100", hex: "64 00 AA E3 1E FF 2F E1" },
+  { decimal: "255", hex: "FF 00 AA E3 1E FF 2F E1" },
+  { decimal: "999", hex: "E7 03 00 E3 1E FF 2F E1" }
+];
+
+interface FloatPatchValue {
+  value: string;
+  hex: string;
+}
+
+const FLOAT_PATCH_VALUES: FloatPatchValue[] = [
+  { value: "1000.0", hex: "00 00 7A 44 1E FF 2F E1" },
+  { value: "1.0", hex: "00 00 80 3F 1E FF 2F E1" },
+  { value: "0.5", hex: "00 00 00 3F 1E FF 2F E1" },
+  { value: "2.0", hex: "00 00 00 40 1E FF 2F E1" }
+];
+
+// Predefined mock dump.cs for local sandbox demonstration
+const SAMPLE_DUMP_CS = `// Generated by Il2CppDumper v6.4.15
+// Namespace: 
+public class GameManager : MonoBehaviour
+{
+	// RVA: 0x7F17870 Offset: 0x7F17870 VA: 0xACF8D870
+	public static bool IsHighFPS120Open() { }
+
+	// RVA: 0x521B780 Offset: 0x521B780 VA: 0xBC1122
+	private int get_UserCoins() { }
+
+	// RVA: 0x1A2B3C4 Offset: 0x1A2B3C4 VA: 0xDEB001
+	public bool get_CanBeLockedByAimAssist() { }
+}
+
+public class WeaponManager : MonoBehaviour
+{
+	// RVA: 0xFB1374 Offset: 0xFB1374 VA: 0x9F8E7D
+	public float get_InSwapWeaponCD() { }
+
+	// RVA: 0x334455 Offset: 0x334455 VA: 0x77334455
+	private bool ADBBMDMEFNO() { }
+
+	// RVA: 0xAB9988 Offset: 0xAB9988 VA: 0x88AB9988
+	public float get_fog() { }
+}
+
+public class PlayerBones : MonoBehaviour
+{
+	protected ITransformNode PEMOFNFCLFB; // 0x458
+	private TransformNode DIDHPFKMJJE; // 0x460
+	public static ITransformNode KAKOKIHEPCF; // 0x468
+	protected ITransformNode KNFKIDHJCCO; // 0x470
+	protected ITransformNode BOHFCEHMJBD; // 0x478
+	protected ITransformNode BIPBNNIFCNO; // 0x480
+	protected ITransformNode JLLMBADGKJP; // 0x488
+	protected ITransformNode INHGPBHOKPF; // 0x490
+	protected ITransformNode NBHOEOOCIIG; // 0x498
+	protected ITransformNode OEJFBHIIBBG; // 0x4A0
+	protected ITransformNode DIHJDDNIJHP; // 0x4A8
+	protected ITransformNode PNPBBNDANEM; // 0x4B0
+	protected ITransformNode KMIANNCLNOJ; // 0x4B8
+	protected ITransformNode KNBJLEHOPIL; // 0x4C0
+	protected ITransformNode NFDNMIOPILM; // 0x4C8
+}
+`;
+
+// Extract a single function block completely, including preceding comments and multi-line body
+const extractFullFunction = (content: string, funcName: string, targetRva?: string): string => {
+  if (!content || !funcName) return '';
+  const contentLower = content.toLowerCase();
+  const funcLower = funcName.toLowerCase();
+  const funcLen = funcName.length;
+  
+  let index = 0;
+  let bestFallback = '';
+
+  while (true) {
+    index = contentLower.indexOf(funcLower, index);
+    if (index === -1) break;
+    
+    // Check word boundaries
+    const prevChar = index > 0 ? content[index - 1] : '';
+    const nextChar = index + funcLen < content.length ? content[index + funcLen] : '';
+    const isWordCharBefore = /[a-zA-Z0-9_]/.test(prevChar);
+    const isWordCharAfter = /[a-zA-Z0-9_]/.test(nextChar);
+    
+    if (!isWordCharBefore && !isWordCharAfter) {
+      // Find the start of the line where funcName is declared
+      let lineStart = content.lastIndexOf('\n', index);
+      lineStart = lineStart === -1 ? 0 : lineStart + 1;
+      
+      // Find preceding comments (RVA lines)
+      let firstCommentLineStart = lineStart;
+      let scanIndex = lineStart;
+      let linesChecked = 0;
+      const maxBackwardLines = 15;
+      
+      while (scanIndex > 0 && linesChecked < maxBackwardLines) {
+        const prevNewline = content.lastIndexOf('\n', scanIndex - 2);
+        const prevLineStart = prevNewline === -1 ? 0 : prevNewline + 1;
+        const prevLine = content.substring(prevLineStart, scanIndex).trim();
+        linesChecked++;
+        
+        if (prevLine.startsWith('//')) {
+          firstCommentLineStart = prevLineStart;
+        } else if (prevLine === '' || prevLine.includes('class ') || prevLine.includes('struct ') || prevLine.includes('{') || prevLine.includes('}')) {
+          break;
+        } else {
+          break;
+        }
+        scanIndex = prevLineStart;
+      }
+      
+      // Now find the end of the function
+      let lineEnd = content.indexOf('\n', index);
+      if (lineEnd === -1) lineEnd = content.length;
+      
+      const signatureLine = content.substring(lineStart, lineEnd);
+      let extractedBlock = '';
+      
+      // If it's inline `{ }`
+      if (signatureLine.includes('{') && signatureLine.includes('}')) {
+        extractedBlock = content.substring(firstCommentLineStart, lineEnd).trim();
+      } else {
+        // Multi-line scan
+        let braceCount = 0;
+        let foundBrace = false;
+        let scanForwardIndex = lineStart;
+        let forwardLinesCount = 0;
+        let finalEndIndex = lineEnd;
+        
+        while (scanForwardIndex < content.length && forwardLinesCount < 30) {
+          const nextNewline = content.indexOf('\n', scanForwardIndex);
+          const currentLineEnd = nextNewline === -1 ? content.length : nextNewline;
+          const currentLine = content.substring(scanForwardIndex, currentLineEnd);
+          
+          for (let i = 0; i < currentLine.length; i++) {
+            const char = currentLine[i];
+            if (char === '{') {
+              braceCount++;
+              foundBrace = true;
+            } else if (char === '}') {
+              braceCount--;
+            }
+          }
+          
+          finalEndIndex = currentLineEnd;
+          if (foundBrace && braceCount === 0) {
+            break;
+          }
+          
+          if (nextNewline === -1) break;
+          scanForwardIndex = nextNewline + 1;
+          forwardLinesCount++;
+        }
+        extractedBlock = content.substring(firstCommentLineStart, finalEndIndex).trim();
+      }
+
+      if (extractedBlock) {
+        // If targetRva is specified and this block matches it, return immediately
+        if (targetRva && targetRva !== 'Not Found') {
+          if (extractedBlock.includes(targetRva)) {
+            return extractedBlock;
+          }
+        }
+        
+        if (!bestFallback) {
+          bestFallback = extractedBlock;
+        }
+      }
+    }
+    
+    index += funcLen;
+  }
+  
+  return bestFallback;
+};
+
+// Find the correct function body even if a feature has multiple mapping functions
+const getFunctionBodyForFeature = (feature: string, rva: string, fileContent: string): { body: string; funcName: string } => {
+  const mappings = SMART_MAPPINGS.filter(m => m.feature === feature);
+  
+  // Try to match the function that contains the target RVA
+  for (const mapping of mappings) {
+    const body = extractFullFunction(fileContent, mapping.func, rva);
+    if (body && rva && rva !== 'Not Found' && body.includes(rva)) {
+      return { body, funcName: mapping.func };
+    }
+  }
+  
+  // Fallback to any matching function signature
+  for (const mapping of mappings) {
+    const body = extractFullFunction(fileContent, mapping.func);
+    if (body) {
+      return { body, funcName: mapping.func };
+    }
+  }
+  
+  return { body: '', funcName: '' };
+};
+
+// C# Token-based syntax highlighter for code display
+const highlightCSharp = (code: string): React.ReactNode => {
+  if (!code) return null;
+  const lines = code.split('\n');
+  
+  return lines.map((line, lineIdx) => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('//')) {
+      return (
+        <div key={lineIdx} className="text-slate-500 italic">
+          {line}
+        </div>
+      );
+    }
+    
+    // Regex split to capture words, spaces, symbols
+    const tokens = line.split(/(\s+|[{}();,])/);
+    
+    return (
+      <div key={lineIdx} className="text-slate-300">
+        {tokens.map((token, tokenIdx) => {
+          const trimmedToken = token.trim();
+          if (!trimmedToken) {
+            return <span key={tokenIdx}>{token}</span>;
+          }
+          
+          if (['public', 'private', 'protected', 'internal'].includes(trimmedToken)) {
+            return <span key={tokenIdx} className="text-rose-400 font-semibold">{token}</span>;
+          }
+          if (['static', 'virtual', 'override', 'readonly', 'const'].includes(trimmedToken)) {
+            return <span key={tokenIdx} className="text-amber-400">{token}</span>;
+          }
+          if (['bool', 'int', 'float', 'double', 'void', 'string', 'class', 'struct'].includes(trimmedToken)) {
+            return <span key={tokenIdx} className="text-emerald-400 font-medium">{token}</span>;
+          }
+          if (trimmedToken.startsWith('0x') || /^\d+$/.test(trimmedToken)) {
+            return <span key={tokenIdx} className="text-blue-400">{token}</span>;
+          }
+          if (trimmedToken.startsWith('//')) {
+            return <span key={tokenIdx} className="text-slate-500 italic">{token}</span>;
+          }
+          
+          return <span key={tokenIdx}>{token}</span>;
+        })}
+      </div>
+    );
+  });
+};
+
+// DIRECT CODES constant patch data
+const DIRECT_BOOLEAN_PATCHES = [
+  { value: 'TRUE', hex: '01 00 A0 E3 1E FF 2F E1' },
+  { value: 'FALSE', hex: '00 00 A0 E3 1E FF 2F E1' }
+];
+
+const DIRECT_INTEGER_PATCHES = [
+  { value: '100', hex: '64 00 AA E3 1E FF 2F E1' },
+  { value: '255', hex: 'FF 00 AA E3 1E FF 2F E1' },
+  { value: '999', hex: 'E7 03 00 E3 1E FF 2F E1' }
+];
+
+const DIRECT_FLOAT_PATCHES = [
+  { value: '1000.0', hex: '00 00 7A 44 1E FF 2F E1' },
+  { value: '1.0', hex: '00 00 80 3F 1E FF 2F E1' },
+  { value: '0.5', hex: '00 00 00 3F 1E FF 2F E1' },
+  { value: '2.0', hex: '00 00 00 40 1E FF 2F E1' }
+];
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState<'mapper' | 'hexViewer' | 'bones' | 'direct' | 'aimbot'>('mapper');
+
+  // DIRECT CODES States
+  const [directView, setDirectView] = useState<'upload' | 'scanning' | 'results' | 'details'>('upload');
+  const [directDumpContent, setDirectDumpContent] = useState<string>('');
+  const [directDumpFileName, setDirectDumpFileName] = useState<string>('');
+  const [directDumpFileSize, setDirectDumpFileSize] = useState<number>(0);
+  const [directSoFile, setDirectSoFile] = useState<File | null>(null);
+  const [directSoFileName, setDirectSoFileName] = useState<string>('');
+  const [directSoFileSize, setDirectSoFileSize] = useState<number>(0);
+  const [isDirectDraggingDump, setIsDirectDraggingDump] = useState<boolean>(false);
+  const [isDirectDraggingSo, setIsDirectDraggingSo] = useState<boolean>(false);
+  const [isDirectScanning, setIsDirectScanning] = useState<boolean>(false);
+  const [directScanProgress, setDirectScanProgress] = useState<number>(0);
+  const [directResults, setDirectResults] = useState<{ featureName: string; funcName: string; rva: string; type: string }[]>([]);
+  const [directScanTime, setDirectScanTime] = useState<number>(0);
+  const [directSelectedFeature, setDirectSelectedFeature] = useState<{ featureName: string; funcName: string; rva: string; type: string } | null>(null);
+  const [directSearchCode, setDirectSearchCode] = useState<string>('');
+  const [directPatchType, setDirectPatchType] = useState<'boolean' | 'integer' | 'float'>('boolean');
+  const [directSelectedPatchValue, setDirectSelectedPatchValue] = useState<string>('TRUE');
+  const [directSelectedPatchHex, setDirectSelectedPatchHex] = useState<string>('01 00 A0 E3 1E FF 2F E1');
+  const [directCopiedFeedback, setDirectCopiedFeedback] = useState<'search' | 'replace' | 'everything' | null>(null);
+  const [directErrorMessage, setDirectErrorMessage] = useState<string>('');
+  const [isDirectDemo, setIsDirectDemo] = useState<boolean>(false);
+
+  // Bones Finder States
+  const [bonesView, setBonesView] = useState<'upload' | 'scanning' | 'results'>('upload');
+  const [bonesFileContent, setBonesFileContent] = useState<string>('');
+  const [bonesFileName, setBonesFileName] = useState<string>('');
+  const [bonesFileSize, setBonesFileSize] = useState<number>(0);
+  const [isBonesDragging, setIsBonesDragging] = useState<boolean>(false);
+  const [isBonesScanning, setIsBonesScanning] = useState<boolean>(false);
+  const [bonesScanProgress, setBonesScanProgress] = useState<number>(0);
+  const [bonesResults, setBonesResults] = useState<{ boneName: string; stringName: string; offset: string }[]>([]);
+  const [bonesScanTime, setBonesScanTime] = useState<number>(0);
+  const [bonesCopiedId, setBonesCopiedId] = useState<string | null>(null);
+  const [bonesCopiedAll, setBonesCopiedAll] = useState<boolean>(false);
+  const [bonesErrorMessage, setBonesErrorMessage] = useState<string>('');
+  const [isBonesDemo, setIsBonesDemo] = useState<boolean>(false);
+
+  // Hex Viewer States
+  const [hexFile, setHexFile] = useState<File | null>(null);
+  const [hexFileName, setHexFileName] = useState<string>('');
+  const [hexFileSize, setHexFileSize] = useState<number>(0);
+  const [hexUploadSuccess, setHexUploadSuccess] = useState<boolean>(false);
+  const [hexOffsetInput, setHexOffsetInput] = useState<string>('');
+  const [hexBytes, setHexBytes] = useState<Uint8Array | null>(null);
+  const [hexError, setHexError] = useState<string>('');
+  const [isHexDragging, setIsHexDragging] = useState<boolean>(false);
+  const [hexCopiedFeedback, setHexCopiedFeedback] = useState<string | null>(null);
+
+  // Aimbot AI Finder States
+  const [aimbotBasicOffsetInput, setAimbotBasicOffsetInput] = useState<string>('');
+  const [aimbotBasicOffsetResult, setAimbotBasicOffsetResult] = useState<string | null>(null);
+  const [isAimbotBasicCalculating, setIsAimbotBasicCalculating] = useState<boolean>(false);
+  const [aimbotBasicError, setAimbotBasicError] = useState<string | null>(null);
+  const [aimbotBasicCopied, setAimbotBasicCopied] = useState<boolean>(false);
+
+  const [aimbotColliderOffsetInput, setAimbotColliderOffsetInput] = useState<string>('');
+  const [aimbotAiReadOffsetInput, setAimbotAiReadOffsetInput] = useState<string>('');
+  const [aimbotWriteOffsetResult, setAimbotWriteOffsetResult] = useState<string | null>(null);
+  const [isAimbotWriteCalculating, setIsAimbotWriteCalculating] = useState<boolean>(false);
+  const [aimbotWriteError, setAimbotWriteError] = useState<string | null>(null);
+  const [aimbotWriteCopied, setAimbotWriteCopied] = useState<boolean>(false);
+
+  // Navigation & File States
+  const [view, setView] = useState<'upload' | 'scanning' | 'results'>('upload');
+  const [fileContent, setFileContent] = useState<string>('');
+  const [fileName, setFileName] = useState<string>('');
+  const [fileSize, setFileSize] = useState<number>(0);
+  const [lineCount, setLineCount] = useState<number>(0);
+  const [isDemo, setIsDemo] = useState<boolean>(false);
+
+  // Scanning states
+  const [isBulkScanning, setIsBulkScanning] = useState<boolean>(false);
+  const [bulkScanProgress, setBulkScanProgress] = useState<number>(0);
+  const [bulkScanResults, setBulkScanResults] = useState<Record<string, string>>({});
+  const [bulkScanTime, setBulkScanTime] = useState<number>(0);
+  const [hasRunBulkScan, setHasRunBulkScan] = useState<boolean>(false);
+
+  // UI display & filter states
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [resultsLayout, setResultsLayout] = useState<'cards' | 'plain' | 'viewer'>('cards');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
+
+  // Keep track of full text search states inside Dump.cs Viewer
+  const [viewerSearchInput, setViewerSearchInput] = useState<string>('');
+  const [viewerSearchQuery, setViewerSearchQuery] = useState<string>('');
+  const [activeMatchIdx, setActiveMatchIdx] = useState<number>(-1);
+
+  const handleViewerSearch = useCallback(() => {
+    setViewerSearchQuery(viewerSearchInput);
+  }, [viewerSearchInput]);
+
+  const handleClearViewerSearch = useCallback(() => {
+    setViewerSearchInput('');
+    setViewerSearchQuery('');
+  }, []);
+
+  // Split fileContent into lines for high-performance rendering and line-based tracking
+  const dumpLines = useMemo(() => {
+    if (!fileContent) return [];
+    return fileContent.split('\n');
+  }, [fileContent]);
+
+  // Find all matches of the search query in the complete dump lines
+  const dumpMatches = useMemo(() => {
+    if (!viewerSearchQuery || viewerSearchQuery.length < 2) return [];
+    const query = viewerSearchQuery.toLowerCase();
+    const list: { lineIdx: number; startCol: number; length: number; matchIdx: number }[] = [];
+    let matchCount = 0;
+
+    dumpLines.forEach((line, lineIdx) => {
+      const lineLower = line.toLowerCase();
+      let colIdx = lineLower.indexOf(query);
+      while (colIdx !== -1) {
+        list.push({
+          lineIdx,
+          startCol: colIdx,
+          length: query.length,
+          matchIdx: matchCount++
+        });
+        colIdx = lineLower.indexOf(query, colIdx + query.length);
+      }
+    });
+    return list;
+  }, [dumpLines, viewerSearchQuery]);
+
+  // Automatically reset activeMatchIdx to 0 when matches change
+  useEffect(() => {
+    if (dumpMatches.length > 0) {
+      setActiveMatchIdx(0);
+    } else {
+      setActiveMatchIdx(-1);
+    }
+  }, [dumpMatches]);
+
+  // Auto scroll to active match
+  useEffect(() => {
+    if (activeMatchIdx !== -1 && dumpMatches[activeMatchIdx]) {
+      const timer = setTimeout(() => {
+        const element = document.getElementById(`match-item-${activeMatchIdx}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [activeMatchIdx, dumpMatches]);
+
+  // Keyboard navigation listener for previous (ArrowUp) / next (ArrowDown) search matches
+  useEffect(() => {
+    if (resultsLayout !== 'viewer' || dumpMatches.length === 0) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Avoid overriding standard inputs if user is typing elsewhere
+      if (document.activeElement?.tagName === 'INPUT' && document.activeElement !== document.querySelector('input[placeholder*="Full-text"]')) {
+        return;
+      }
+      
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setActiveMatchIdx(prev => (prev - 1 + dumpMatches.length) % dumpMatches.length);
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setActiveMatchIdx(prev => (prev + 1) % dumpMatches.length);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [resultsLayout, dumpMatches, setActiveMatchIdx]);
+
+  // Modal / Details Panel states
+  const [selectedFeatureForModal, setSelectedFeatureForModal] = useState<string | null>(null);
+  const [modalFunctionBody, setModalFunctionBody] = useState<string>('');
+  const [modalRva, setModalRva] = useState<string>('');
+  const [modalType, setModalType] = useState<string>('');
+  const [modalFuncName, setModalFuncName] = useState<string>('');
+  const [modalCopiedType, setModalCopiedType] = useState<string | null>(null);
+  const [intSearchQuery, setIntSearchQuery] = useState<string>('');
+  const [floatSearchQuery, setFloatSearchQuery] = useState<string>('');
+
+  const filteredIntPatchValues = useMemo(() => {
+    const query = intSearchQuery.trim().toLowerCase();
+    if (!query) return INT_PATCH_VALUES;
+    return INT_PATCH_VALUES.filter(
+      (item) =>
+        item.decimal.toLowerCase().includes(query) ||
+        item.decimal.replace(/,/g, '').includes(query)
+    );
+  }, [intSearchQuery]);
+
+  const filteredFloatPatchValues = useMemo(() => {
+    const query = floatSearchQuery.trim().toLowerCase();
+    if (!query) return FLOAT_PATCH_VALUES;
+    return FLOAT_PATCH_VALUES.filter(
+      (item) =>
+        item.value.toLowerCase().includes(query)
+    );
+  }, [floatSearchQuery]);
+
+  // Current page index for large Dump.cs pagination when NOT searching
+  const [currentPage, setCurrentPage] = useState<number>(0);
+
+  // Reset page index and search states when Dump.cs file is swapped/cleared
+  useEffect(() => {
+    setCurrentPage(0);
+    setViewerSearchInput('');
+    setViewerSearchQuery('');
+  }, [fileContent]);
+
+  // Custom function to highlight match occurrences in active lines inside Dump.cs Viewer
+  const renderViewerLine = useCallback((line: string, lineIdx: number) => {
+    const lineMatches = dumpMatches.filter(m => m.lineIdx === lineIdx);
+    if (lineMatches.length === 0) {
+      return line;
+    }
+
+    // Sort matches on the same line from left to right
+    const sorted = [...lineMatches].sort((a, b) => a.startCol - b.startCol);
+    const elements: React.ReactNode[] = [];
+    let lastIdx = 0;
+
+    sorted.forEach((m, idx) => {
+      // Add preceding normal text
+      if (m.startCol > lastIdx) {
+        elements.push(line.substring(lastIdx, m.startCol));
+      }
+
+      const isActive = m.matchIdx === activeMatchIdx;
+
+      // Add highlighted segment
+      elements.push(
+        <span
+          key={`match-${lineIdx}-${m.startCol}-${idx}`}
+          id={`match-item-${m.matchIdx}`}
+          className={`px-0.5 rounded transition-all duration-150 font-mono ${
+            isActive
+              ? 'bg-red-500 text-white font-bold shadow-[0_0_10px_#EF4444] border border-red-400 scale-105 inline-block z-10'
+              : 'bg-red-950/60 text-red-300 border border-red-500/20 inline-block'
+          }`}
+        >
+          {line.substring(m.startCol, m.startCol + m.length)}
+        </span>
+      );
+
+      lastIdx = m.startCol + m.length;
+    });
+
+    // Add remaining tail text
+    if (lastIdx < line.length) {
+      elements.push(line.substring(lastIdx));
+    }
+
+    return <>{elements}</>;
+  }, [dumpMatches, activeMatchIdx]);
+
+  // Window size for the Dump.cs high-performance virtualized viewport
+  const WINDOW_SIZE = 1500;
+
+  // Calculate start line and slice of lines to render dynamically
+  const { renderedLinesSlice, startIndex } = useMemo(() => {
+    const totalLines = dumpLines.length;
+    if (dumpMatches.length > 0 && activeMatchIdx !== -1) {
+      // Search is active: center the window around the active match line
+      const activeMatch = dumpMatches[activeMatchIdx];
+      const activeLine = activeMatch.lineIdx;
+      let start = Math.max(0, activeLine - Math.floor(WINDOW_SIZE / 2));
+      let end = Math.min(totalLines, start + WINDOW_SIZE);
+      
+      // Adjust start if end is capped
+      if (end - start < WINDOW_SIZE) {
+        start = Math.max(0, end - WINDOW_SIZE);
+      }
+      return {
+        renderedLinesSlice: dumpLines.slice(start, end),
+        startIndex: start
+      };
+    } else {
+      // No active search or no matches: render lines based on current pagination page
+      const start = currentPage * WINDOW_SIZE;
+      const end = Math.min(totalLines, start + WINDOW_SIZE);
+      return {
+        renderedLinesSlice: dumpLines.slice(start, end),
+        startIndex: start
+      };
+    }
+  }, [dumpLines, dumpMatches, activeMatchIdx, currentPage]);
+
+  const handleCopyAllPatches = () => {
+    const patchesText = [
+      "----------------------------------------",
+      "BOOLEAN PATCH VALUES",
+      "----------------------------------------",
+      "",
+      "TRUE",
+      "01 00 A0 E3 1E FF 2F E1",
+      "",
+      "FALSE",
+      "00 00 A0 E3 1E FF 2F E1",
+      "",
+      "----------------------------------------",
+      "INTEGER PATCH VALUES",
+      "----------------------------------------",
+      "",
+      "100",
+      "64 00 AA E3 1E FF 2F E1",
+      "",
+      "255",
+      "FF 00 AA E3 1E FF 2F E1",
+      "",
+      "999",
+      "E7 03 00 E3 1E FF 2F E1",
+      "",
+      "----------------------------------------",
+      "FLOAT PATCH VALUES",
+      "----------------------------------------",
+      "",
+      "1000.0",
+      "00 00 7A 44 1E FF 2F E1",
+      "",
+      "1.0",
+      "00 00 80 3F 1E FF 2F E1",
+      "",
+      "0.5",
+      "00 00 00 3F 1E FF 2F E1",
+      "",
+      "2.0",
+      "00 00 00 40 1E FF 2F E1",
+      "",
+      "----------------------------------------"
+    ].join("\n");
+    navigator.clipboard.writeText(patchesText);
+    setModalCopiedType('all_patches');
+    setTimeout(() => setModalCopiedType(null), 1500);
+  };
+
+  useEffect(() => {
+    if (!selectedFeatureForModal) {
+      setIntSearchQuery('');
+      setFloatSearchQuery('');
+    }
+  }, [selectedFeatureForModal]);
+
+  useEffect(() => {
+    // 1. Disable right-click context menu
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+    document.addEventListener('contextmenu', handleContextMenu);
+
+    // 2. Disable common shortcuts (Ctrl+U, Ctrl+S, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C, F12)
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isCtrlOrMeta = e.ctrlKey || e.metaKey;
+      
+      // Ctrl+U
+      if (isCtrlOrMeta && (e.key === 'u' || e.key === 'U' || e.keyCode === 85)) {
+        e.preventDefault();
+        return;
+      }
+      // Ctrl+S
+      if (isCtrlOrMeta && (e.key === 's' || e.key === 'S' || e.keyCode === 83)) {
+        e.preventDefault();
+        return;
+      }
+      // Ctrl+Shift+I / J / C
+      if (isCtrlOrMeta && e.shiftKey && (
+        e.key === 'I' || e.key === 'i' || e.keyCode === 73 ||
+        e.key === 'J' || e.key === 'j' || e.keyCode === 74 ||
+        e.key === 'C' || e.key === 'c' || e.keyCode === 67
+      )) {
+        e.preventDefault();
+        return;
+      }
+      // F12
+      if (e.key === 'F12' || e.keyCode === 123) {
+        e.preventDefault();
+        return;
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Buffer lines count helper
+  const countLines = (text: string): number => {
+    let count = 1;
+    let pos = 0;
+    while ((pos = text.indexOf('\n', pos)) !== -1) {
+      count++;
+      pos++;
+    }
+    return count;
+  };
+
+  // Perform the physical, lightning-fast scan
+  const executePhysicalScan = useCallback((content: string): { results: Record<string, string>; duration: number } => {
+    const startTime = performance.now();
+    const results: Record<string, string> = {};
+    const contentLower = content.toLowerCase();
+    const contentLen = content.length;
+
+    UNIQUE_FEATURES.forEach((feature) => {
+      // Find the corresponding mappings for this feature
+      const mappings = SMART_MAPPINGS.filter(m => m.feature === feature);
+      let foundRVA = 'Not Found';
+
+      for (const mapping of mappings) {
+        const funcName = mapping.func;
+        const funcLower = funcName.toLowerCase();
+        const funcLen = funcName.length;
+        let index = 0;
+
+        while (true) {
+          index = contentLower.indexOf(funcLower, index);
+          if (index === -1) break;
+
+          // Verify whole word boundaries
+          const prevChar = index > 0 ? content[index - 1] : '';
+          const nextChar = index + funcLen < contentLen ? content[index + funcLen] : '';
+          const isWordCharBefore = /[a-zA-Z0-9_]/.test(prevChar);
+          const isWordCharAfter = /[a-zA-Z0-9_]/.test(nextChar);
+
+          if (!isWordCharBefore && !isWordCharAfter) {
+            // Found matching identifier, now find its preceding // RVA: line
+            let lineStart = content.lastIndexOf('\n', index);
+            lineStart = lineStart === -1 ? 0 : lineStart + 1;
+
+            let scanIndex = lineStart;
+            let rvaLine = '';
+            let linesChecked = 0;
+            const maxBackwardLines = 10;
+
+            while (scanIndex > 0 && linesChecked < maxBackwardLines) {
+              let prevNewline = content.lastIndexOf('\n', scanIndex - 2);
+              let prevLineStart = prevNewline === -1 ? 0 : prevNewline + 1;
+              let prevLine = content.substring(prevLineStart, scanIndex).trim();
+              linesChecked++;
+
+              if (prevLine.startsWith('// RVA:')) {
+                rvaLine = prevLine;
+                break;
+              }
+              if (prevLine.includes('class ') || prevLine.includes('struct ') || prevLine.includes('{') || prevLine.includes('}')) {
+                break;
+              }
+              scanIndex = prevLineStart;
+            }
+
+            if (rvaLine) {
+              const rvaMatch = rvaLine.match(/RVA:\s*(0x[0-9A-Fa-f]+)/i);
+              if (rvaMatch) {
+                foundRVA = rvaMatch[1];
+                break; // Found matching RVA, skip further instances
+              }
+            }
+          }
+          index += funcLen;
+        }
+
+        if (foundRVA !== 'Not Found') {
+          break; // Found the value, skip remaining alternate method signatures
+        }
+      }
+
+      results[feature] = foundRVA;
+    });
+
+    const endTime = performance.now();
+    return {
+      results,
+      duration: Math.round(endTime - startTime)
+    };
+  }, []);
+
+  // Integrated, premium animated scanner controller
+  const startScanningProcess = useCallback((content: string, name: string, size: number, isSample: boolean = false) => {
+    setFileContent(content);
+    setFileName(name);
+    setFileSize(size);
+    setLineCount(countLines(content));
+    setIsDemo(isSample);
+    setErrorMessage('');
+
+    // Trigger visual loading screen
+    setView('scanning');
+    setBulkScanProgress(0);
+    setIsBulkScanning(true);
+
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += Math.floor(Math.random() * 8) + 4;
+      if (progress >= 100) {
+        progress = 100;
+        clearInterval(interval);
+
+        // Run actual heavy-duty parsing
+        const scan = executePhysicalScan(content);
+
+        setTimeout(() => {
+          setBulkScanResults(scan.results);
+          setBulkScanTime(scan.duration);
+          setIsBulkScanning(false);
+          setHasRunBulkScan(true);
+          setView('results');
+        }, 400); // Breathe at 100% for transition smoothness
+      } else {
+        setBulkScanProgress(progress);
+      }
+    }, 45); // Completes loading screen sequence in ~1 second
+  }, [executePhysicalScan]);
+
+  // Handle uploaded/dragged files
+  const handleFile = (file: File) => {
+    if (!file.name.endsWith('.cs') && !file.name.endsWith('.txt')) {
+      setErrorMessage('Please upload a valid Unity dump.cs or text file.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      startScanningProcess(text, file.name, file.size);
+    };
+    reader.onerror = () => {
+      setErrorMessage('Failed to read file. Please try again.');
+    };
+    reader.readAsText(file);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      handleFile(e.target.files[0]);
+    }
+  };
+
+  // Drag-and-drop mechanics
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const triggerFileBrowser = () => {
+    fileInputRef.current?.click();
+  };
+
+  // Sandbox demonstration builder
+  const loadSandboxTemplate = () => {
+    startScanningProcess(SAMPLE_DUMP_CS, 'sandbox_dump.cs', SAMPLE_DUMP_CS.length, true);
+  };
+
+  // Bones Finder Event Handlers and Helpers
+  const bonesFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Perform the bones scanning
+  const executeBonesScan = useCallback((content: string): { results: { boneName: string; stringName: string; offset: string }[]; duration: number } => {
+    const startTime = performance.now();
+    const results: { boneName: string; stringName: string; offset: string }[] = [];
+    const lines = content.split('\n');
+
+    BONE_TARGETS.forEach(({ name, stringName }) => {
+      const stringNameUpper = stringName.toUpperCase();
+      let foundOffset = '';
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (line.toUpperCase().includes(stringNameUpper)) {
+          const commentIndex = line.indexOf('//');
+          if (commentIndex !== -1) {
+            const commentText = line.substring(commentIndex + 2).trim();
+            // Look for a hex offset starting with 0x (e.g. 0x458)
+            const hexMatch = commentText.match(/0x[0-9a-fA-F]+/i);
+            if (hexMatch) {
+              foundOffset = hexMatch[0];
+            } else {
+              // Fallback to any alphanumeric/hex string or numbers
+              const wordMatch = commentText.match(/[0-9a-fA-F]+/i);
+              if (wordMatch) {
+                foundOffset = wordMatch[0];
+              }
+            }
+            if (foundOffset) {
+              break; // Found the offset for this bone, stop searching lines
+            }
+          }
+        }
+      }
+
+      if (foundOffset) {
+        results.push({
+          boneName: name,
+          stringName,
+          offset: foundOffset
+        });
+      }
+    });
+
+    const endTime = performance.now();
+    return {
+      results,
+      duration: Math.round(endTime - startTime)
+    };
+  }, []);
+
+  const startBonesScanningProcess = useCallback((content: string, name: string, size: number, isSample: boolean = false) => {
+    setBonesFileContent(content);
+    setBonesFileName(name);
+    setBonesFileSize(size);
+    setIsBonesDemo(isSample);
+    setBonesErrorMessage('');
+
+    setBonesView('scanning');
+    setBonesScanProgress(0);
+    setIsBonesScanning(true);
+
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += Math.floor(Math.random() * 10) + 5;
+      if (progress >= 100) {
+        progress = 100;
+        clearInterval(interval);
+
+        const scan = executeBonesScan(content);
+
+        setTimeout(() => {
+          setBonesResults(scan.results);
+          setBonesScanTime(scan.duration);
+          setIsBonesScanning(false);
+          setBonesView('results');
+        }, 400);
+      } else {
+        setBonesScanProgress(progress);
+      }
+    }, 40);
+  }, [executeBonesScan]);
+
+  const handleBonesFile = (file: File) => {
+    if (!file.name.endsWith('.cs') && !file.name.endsWith('.txt')) {
+      setBonesErrorMessage('Please upload a valid Unity dump.cs or text file.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      startBonesScanningProcess(text, file.name, file.size);
+    };
+    reader.onerror = () => {
+      setBonesErrorMessage('Failed to read file. Please try again.');
+    };
+    reader.readAsText(file);
+  };
+
+  const handleBonesFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      handleBonesFile(e.target.files[0]);
+    }
+  };
+
+  const handleBonesDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsBonesDragging(true);
+  };
+
+  const handleBonesDragLeave = () => {
+    setIsBonesDragging(false);
+  };
+
+  const handleBonesDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsBonesDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleBonesFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const triggerBonesFileBrowser = () => {
+    bonesFileInputRef.current?.click();
+  };
+
+  // Hex Viewer Event Handlers and Helpers
+  const hexFileInputRef = useRef<HTMLInputElement>(null);
+
+  const triggerHexFileBrowser = () => {
+    hexFileInputRef.current?.click();
+  };
+
+  const handleHexFile = (file: File) => {
+    setHexFile(file);
+    setHexFileName(file.name);
+    setHexFileSize(file.size);
+    setHexUploadSuccess(true);
+    setHexBytes(null);
+    setHexError('');
+  };
+
+  const handleHexFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      handleHexFile(e.target.files[0]);
+    }
+  };
+
+  const handleHexDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsHexDragging(true);
+  };
+
+  const handleHexDragLeave = () => {
+    setIsHexDragging(false);
+  };
+
+  const handleHexDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsHexDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleHexFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleReadHex = () => {
+    setHexError('');
+    setHexBytes(null);
+
+    if (!hexFile) {
+      setHexError('No file selected');
+      return;
+    }
+
+    let offsetStr = hexOffsetInput.trim();
+    if (offsetStr.toLowerCase().startsWith('0x')) {
+      offsetStr = offsetStr.substring(2);
+    }
+
+    if (!offsetStr) {
+      setHexError('Invalid Offset');
+      return;
+    }
+
+    // Parse hexadecimal offset
+    const offset = parseInt(offsetStr, 16);
+    if (isNaN(offset) || !/^[0-9A-Fa-f]+$/.test(offsetStr)) {
+      setHexError('Invalid Offset');
+      return;
+    }
+
+    if (offset < 0 || offset >= hexFile.size) {
+      setHexError('Offset outside file');
+      return;
+    }
+
+    // Read exactly 128 bytes
+    const blobSlice = hexFile.slice(offset, Math.min(offset + 128, hexFile.size));
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (e.target?.result instanceof ArrayBuffer) {
+        setHexBytes(new Uint8Array(e.target.result));
+      } else {
+        setHexError('Failed to read file segment');
+      }
+    };
+    reader.onerror = () => {
+      setHexError('Failed to read file segment');
+    };
+    reader.readAsArrayBuffer(blobSlice);
+  };
+
+  const handleHexClear = () => {
+    setHexFile(null);
+    setHexFileName('');
+    setHexFileSize(0);
+    setHexUploadSuccess(false);
+    setHexOffsetInput('');
+    setHexBytes(null);
+    setHexError('');
+  };
+
+  const handleCopySelectedHex = () => {
+    const selectionText = window.getSelection()?.toString();
+    if (!selectionText) {
+      setHexError('Please highlight some bytes in the output first');
+      setTimeout(() => setHexError(''), 3000);
+      return;
+    }
+    
+    const cleaned = selectionText.trim().split(/\s+/).filter(Boolean).join(' ');
+    
+    if (cleaned) {
+      navigator.clipboard.writeText(cleaned);
+      setHexCopiedFeedback('selected');
+      setTimeout(() => setHexCopiedFeedback(null), 1500);
+    }
+  };
+
+  const handleCopyAllHex = () => {
+    if (!hexBytes) return;
+    const formatted = Array.from(hexBytes)
+      .map((b: number) => b.toString(16).padStart(2, '0').toUpperCase())
+      .join(' ');
+    
+    navigator.clipboard.writeText(formatted);
+    setHexCopiedFeedback('all');
+    setTimeout(() => setHexCopiedFeedback(null), 1500);
+  };
+
+  const formattedHexFileSize = useMemo(() => {
+    if (hexFileSize === 0) return '0.0 KB';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(hexFileSize) / Math.log(k));
+    return parseFloat((hexFileSize / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }, [hexFileSize]);
+
+  const formattedHexRows = useMemo(() => {
+    if (!hexBytes) return [];
+    const rows = [];
+    for (let i = 0; i < hexBytes.length; i += 16) {
+      const slice = hexBytes.slice(i, i + 16);
+      const rowStr = Array.from(slice)
+        .map((b: number) => b.toString(16).padStart(2, '0').toUpperCase())
+        .join(' ');
+      rows.push(rowStr);
+    }
+    return rows;
+  }, [hexBytes]);
+
+  // ==========================================
+  // DIRECT CODES HANDLERS & LOGIC
+  // ==========================================
+  const directDumpInputRef = useRef<HTMLInputElement>(null);
+  const directSoInputRef = useRef<HTMLInputElement>(null);
+
+  const triggerDirectDumpBrowser = () => {
+    directDumpInputRef.current?.click();
+  };
+
+  const triggerDirectSoBrowser = () => {
+    directSoInputRef.current?.click();
+  };
+
+  const [directDumpFile, setDirectDumpFile] = useState<File | null>(null);
+
+  const handleDirectDumpFile = (file: File) => {
+    setDirectDumpFile(file);
+    setDirectDumpFileName(file.name);
+    setDirectDumpFileSize(file.size);
+    setDirectErrorMessage('');
+  };
+
+  const handleDirectSoFile = (file: File) => {
+    setDirectSoFile(file);
+    setDirectSoFileName(file.name);
+    setDirectSoFileSize(file.size);
+    setDirectErrorMessage('');
+  };
+
+  const handleDirectDumpFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        if (typeof evt.target?.result === 'string') {
+          handleDirectDumpFile(file);
+          setDirectDumpContent(evt.target.result);
+        }
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const handleDirectSoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      handleDirectSoFile(e.target.files[0]);
+    }
+  };
+
+  const handleDirectDumpDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDirectDraggingDump(true);
+  };
+  const handleDirectDumpDragLeave = () => {
+    setIsDirectDraggingDump(false);
+  };
+  const handleDirectDumpDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDirectDraggingDump(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        if (typeof evt.target?.result === 'string') {
+          handleDirectDumpFile(file);
+          setDirectDumpContent(evt.target.result);
+        }
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const handleDirectSoDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDirectDraggingSo(true);
+  };
+  const handleDirectSoDragLeave = () => {
+    setIsDirectDraggingSo(false);
+  };
+  const handleDirectSoDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDirectDraggingSo(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleDirectSoFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const generateRealisticMockBytes = (featureName: string, rva: string) => {
+    const seed = featureName.length + (parseInt(rva, 16) || 42);
+    const defaultStartBytes = [0x10, 0x40, 0x2D, 0xE9, 0xD0, 0x40, 0x9F, 0xE5, 0x04, 0x40, 0x8F, 0xE0, 0x00, 0x00, 0xD4, 0xE5, 0x00, 0x00, 0x50, 0xE3, 0x04, 0x00, 0x00, 0x1A];
+    
+    const bytes: string[] = [];
+    defaultStartBytes.forEach(b => {
+      const val = (b + seed) % 256;
+      bytes.push(val.toString(16).padStart(2, '0').toUpperCase());
+    });
+    
+    for (let i = 24; i < 48; i++) {
+      const b = (seed * i + 0x3F) % 256;
+      bytes.push(b.toString(16).padStart(2, '0').toUpperCase());
+    }
+    
+    return bytes.join(' ');
+  };
+
+  const handleSelectFeatureForDirectCode = (feature: { featureName: string; funcName: string; rva: string; type: string }) => {
+    setDirectSelectedFeature(feature);
+    setDirectView('details');
+    setDirectSearchCode('');
+    
+    if (feature.type === 'bool') {
+      setDirectPatchType('boolean');
+      setDirectSelectedPatchValue('TRUE');
+      setDirectSelectedPatchHex('01 00 A0 E3 1E FF 2F E1');
+    } else if (feature.type === 'int') {
+      setDirectPatchType('integer');
+      setDirectSelectedPatchValue('100');
+      setDirectSelectedPatchHex('64 00 AA E3 1E FF 2F E1');
+    } else if (feature.type === 'float') {
+      setDirectPatchType('float');
+      setDirectSelectedPatchValue('1.0');
+      setDirectSelectedPatchHex('00 00 80 3F 1E FF 2F E1');
+    } else {
+      setDirectPatchType('boolean');
+      setDirectSelectedPatchValue('TRUE');
+      setDirectSelectedPatchHex('01 00 A0 E3 1E FF 2F E1');
+    }
+
+    const rvaOffset = parseInt(feature.rva, 16);
+    
+    if (directSoFile && !isNaN(rvaOffset) && rvaOffset >= 0 && rvaOffset < directSoFile.size) {
+      const blobSlice = directSoFile.slice(rvaOffset, Math.min(rvaOffset + 48, directSoFile.size));
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        if (evt.target?.result instanceof ArrayBuffer) {
+          const uint8 = new Uint8Array(evt.target.result);
+          let hexStr = Array.from(uint8)
+            .map(b => b.toString(16).padStart(2, '0').toUpperCase())
+            .join(' ');
+            
+          if (uint8.length < 48) {
+            const padding = [];
+            for (let i = uint8.length; i < 48; i++) {
+              padding.push('00');
+            }
+            if (padding.length > 0) {
+              hexStr += ' ' + padding.join(' ');
+            }
+          }
+          setDirectSearchCode(hexStr);
+        } else {
+          setDirectSearchCode(generateRealisticMockBytes(feature.featureName, feature.rva));
+        }
+      };
+      reader.onerror = () => {
+        setDirectSearchCode(generateRealisticMockBytes(feature.featureName, feature.rva));
+      };
+      reader.readAsArrayBuffer(blobSlice);
+    } else {
+      setDirectSearchCode(generateRealisticMockBytes(feature.featureName, feature.rva));
+    }
+  };
+
+  const startDirectScanning = (dumpContent: string, dumpName: string, dumpSize: number, soFile: File | null, isSample: boolean = false) => {
+    setIsDirectScanning(true);
+    setDirectScanProgress(0);
+    setDirectDumpContent(dumpContent);
+    setDirectDumpFileName(dumpName);
+    setDirectDumpFileSize(dumpSize);
+    setIsDirectDemo(isSample);
+    setDirectErrorMessage('');
+
+    if (soFile) {
+      setDirectSoFile(soFile);
+      setDirectSoFileName(soFile.name);
+      setDirectSoFileSize(soFile.size);
+    } else if (isSample) {
+      setDirectSoFileName('libil2cpp.so (Demo Sandbox)');
+      setDirectSoFileSize(125829120);
+    }
+
+    setDirectView('scanning');
+
+    const startTime = performance.now();
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += 10;
+      setDirectScanProgress(Math.min(progress, 100));
+      
+      if (progress >= 100) {
+        clearInterval(interval);
+        
+        const found: { featureName: string; funcName: string; rva: string; type: string }[] = [];
+        const contentLower = dumpContent.toLowerCase();
+        const contentLen = dumpContent.length;
+
+        SMART_MAPPINGS.forEach((mapping) => {
+          const funcName = mapping.func;
+          const funcLower = funcName.toLowerCase();
+          const funcLen = funcName.length;
+          let index = 0;
+          let foundRVA = 'Not Found';
+
+          while (true) {
+            index = contentLower.indexOf(funcLower, index);
+            if (index === -1) break;
+
+            const prevChar = index > 0 ? dumpContent[index - 1] : '';
+            const nextChar = index + funcLen < contentLen ? dumpContent[index + funcLen] : '';
+            const isWordCharBefore = /[a-zA-Z0-9_]/.test(prevChar);
+            const isWordCharAfter = /[a-zA-Z0-9_]/.test(nextChar);
+
+            if (!isWordCharBefore && !isWordCharAfter) {
+              let lineStart = dumpContent.lastIndexOf('\n', index);
+              lineStart = lineStart === -1 ? 0 : lineStart + 1;
+
+              let scanIndex = lineStart;
+              let rvaLine = '';
+              let linesChecked = 0;
+              const maxBackwardLines = 10;
+
+              while (scanIndex > 0 && linesChecked < maxBackwardLines) {
+                let prevNewline = dumpContent.lastIndexOf('\n', scanIndex - 2);
+                let prevLineStart = prevNewline === -1 ? 0 : prevNewline + 1;
+                let prevLine = dumpContent.substring(prevLineStart, scanIndex).trim();
+                linesChecked++;
+
+                if (prevLine.startsWith('// RVA:')) {
+                  rvaLine = prevLine;
+                  break;
+                }
+                if (prevLine.includes('class ') || prevLine.includes('struct ') || prevLine.includes('{') || prevLine.includes('}')) {
+                  break;
+                }
+                scanIndex = prevLineStart;
+              }
+
+              if (rvaLine) {
+                const rvaMatch = rvaLine.match(/RVA:\s*(0x[0-9A-Fa-f]+)/i);
+                if (rvaMatch) {
+                  foundRVA = rvaMatch[1];
+                  break;
+                }
+              }
+            }
+            index += funcLen;
+          }
+
+          if (foundRVA !== 'Not Found') {
+            if (!found.some(f => f.featureName === mapping.feature)) {
+              found.push({
+                featureName: mapping.feature,
+                funcName: mapping.func,
+                rva: foundRVA,
+                type: mapping.type
+              });
+            }
+          }
+        });
+
+        const endTime = performance.now();
+        setDirectScanTime(Math.round(endTime - startTime));
+        setDirectResults(found);
+        setIsDirectScanning(false);
+        setDirectView('results');
+      }
+    }, 80);
+  };
+
+  const handleDirectReset = () => {
+    setDirectView('upload');
+    setDirectDumpFile(null);
+    setDirectDumpFileName('');
+    setDirectDumpFileSize(0);
+    setDirectDumpContent('');
+    setDirectSoFile(null);
+    setDirectSoFileName('');
+    setDirectSoFileSize(0);
+    setDirectResults([]);
+    setDirectSelectedFeature(null);
+    setIsDirectDemo(false);
+  };
+
+  const directReplaceCode = useMemo(() => {
+    if (!directSearchCode || !directSelectedPatchHex) return '';
+    const searchBytes = directSearchCode.trim().split(/\s+/);
+    const patchBytes = directSelectedPatchHex.trim().split(/\s+/);
+    
+    const replaced = [...searchBytes];
+    for (let i = 0; i < Math.min(patchBytes.length, replaced.length); i++) {
+      replaced[i] = patchBytes[i].toUpperCase();
+    }
+    return replaced.join(' ');
+  }, [directSearchCode, directSelectedPatchHex]);
+
+  const handleCopySearchCode = () => {
+    navigator.clipboard.writeText(directSearchCode);
+    setDirectCopiedFeedback('search');
+    setTimeout(() => setDirectCopiedFeedback(null), 1500);
+  };
+
+  const handleCopyReplaceCode = () => {
+    navigator.clipboard.writeText(directReplaceCode);
+    setDirectCopiedFeedback('replace');
+    setTimeout(() => setDirectCopiedFeedback(null), 1500);
+  };
+
+  const handleCopyEverything = () => {
+    if (!directSelectedFeature) return;
+    const text = `====================================================
+DIRECT PATCH DETAILS
+====================================================
+Feature Name   : ${directSelectedFeature.featureName}
+Function Name  : ${directSelectedFeature.funcName}
+RVA Offset     : ${directSelectedFeature.rva}
+Patch Type     : ${directPatchType.toUpperCase()}
+Selected Value : ${directSelectedPatchValue}
+----------------------------------------------------
+SEARCH CODE (48 Bytes):
+${directSearchCode}
+
+REPLACE CODE (48 Bytes):
+${directReplaceCode}
+====================================================`;
+    navigator.clipboard.writeText(text);
+    setDirectCopiedFeedback('everything');
+    setTimeout(() => setDirectCopiedFeedback(null), 1500);
+  };
+
+  // ====================================================
+  // AIMBOT AI FINDER Handlers
+  // ====================================================
+  const handleAimbotBasicCalculate = () => {
+    const rawInput = aimbotBasicOffsetInput.trim();
+    if (!rawInput) {
+      setAimbotBasicError('Please enter a Basic Offset.');
+      setAimbotBasicOffsetResult(null);
+      return;
+    }
+
+    const cleanInput = rawInput.toLowerCase().startsWith('0x') ? rawInput.slice(2) : rawInput;
+    const hexRegex = /^[0-9a-fA-F]+$/;
+    if (!hexRegex.test(cleanInput)) {
+      setAimbotBasicError('Invalid hexadecimal offset.');
+      setAimbotBasicOffsetResult(null);
+      return;
+    }
+
+    setAimbotBasicError(null);
+    setIsAimbotBasicCalculating(true);
+
+    setTimeout(() => {
+      try {
+        const basicVal = parseInt(cleanInput, 16);
+        // BaseOffset = WeaponOnHand - Camera + WeaponRecoil
+        // 0x54 - 0x18 + 0x0C = 0x48
+        const aiReadVal = basicVal + 0x48;
+        const resultHex = '0x' + aiReadVal.toString(16).toUpperCase();
+        setAimbotBasicOffsetResult(resultHex);
+      } catch (err) {
+        setAimbotBasicError('Error performing calculation.');
+      } finally {
+        setIsAimbotBasicCalculating(false);
+      }
+    }, 400);
+  };
+
+  const handleAimbotBasicClear = () => {
+    setAimbotBasicOffsetInput('');
+    setAimbotBasicOffsetResult(null);
+    setAimbotBasicError(null);
+    setAimbotBasicCopied(false);
+  };
+
+  const handleAimbotBasicCopy = () => {
+    if (!aimbotBasicOffsetResult) return;
+    navigator.clipboard.writeText(aimbotBasicOffsetResult);
+    setAimbotBasicCopied(true);
+    setTimeout(() => setAimbotBasicCopied(false), 2000);
+  };
+
+  const handleAimbotWriteCalculate = () => {
+    const rawCollider = aimbotColliderOffsetInput.trim();
+    const rawAiRead = aimbotAiReadOffsetInput.trim();
+
+    if (!rawCollider || !rawAiRead) {
+      setAimbotWriteError('Please enter both Collider and AI READ Offsets.');
+      setAimbotWriteOffsetResult(null);
+      return;
+    }
+
+    const cleanCollider = rawCollider.toLowerCase().startsWith('0x') ? rawCollider.slice(2) : rawCollider;
+    const cleanAiRead = rawAiRead.toLowerCase().startsWith('0x') ? rawAiRead.slice(2) : rawAiRead;
+
+    const hexRegex = /^[0-9a-fA-F]+$/;
+    if (!hexRegex.test(cleanCollider) || !hexRegex.test(cleanAiRead)) {
+      setAimbotWriteError('Invalid hexadecimal inputs.');
+      setAimbotWriteOffsetResult(null);
+      return;
+    }
+
+    setAimbotWriteError(null);
+    setIsAimbotWriteCalculating(true);
+
+    setTimeout(() => {
+      try {
+        const colliderVal = parseInt(cleanCollider, 16);
+        const aiReadVal = parseInt(cleanAiRead, 16);
+        // PushpaWriteOffset = Player_Data + WeaponRecoil
+        // 0x48 + 0x0C = 0x54
+        const writeVal = colliderVal - aiReadVal - 0x54;
+        
+        let resultHex = '';
+        if (writeVal < 0) {
+          resultHex = '-0x' + Math.abs(writeVal).toString(16).toUpperCase();
+        } else {
+          resultHex = '0x' + writeVal.toString(16).toUpperCase();
+        }
+        
+        setAimbotWriteOffsetResult(resultHex);
+      } catch (err) {
+        setAimbotWriteError('Error performing calculation.');
+      } finally {
+        setIsAimbotWriteCalculating(false);
+      }
+    }, 400);
+  };
+
+  const handleAimbotWriteClear = () => {
+    setAimbotColliderOffsetInput('');
+    setAimbotAiReadOffsetInput('');
+    setAimbotWriteOffsetResult(null);
+    setAimbotWriteError(null);
+    setAimbotWriteCopied(false);
+  };
+
+  const handleAimbotWriteCopy = () => {
+    if (!aimbotWriteOffsetResult) return;
+    navigator.clipboard.writeText(aimbotWriteOffsetResult);
+    setAimbotWriteCopied(true);
+    setTimeout(() => setAimbotWriteCopied(false), 2000);
+  };
+
+  // State Clear / Back reset
+  const handleClear = () => {
+    setFileContent('');
+    setFileName('');
+    setFileSize(0);
+    setLineCount(0);
+    setBulkScanResults({});
+    setHasRunBulkScan(false);
+    setSearchQuery('');
+    setViewerSearchInput('');
+    setViewerSearchQuery('');
+    setResultsLayout('cards');
+    setErrorMessage('');
+    setIsDemo(false);
+    setView('upload');
+  };
+
+  // Format File Size
+  const formattedFileSize = useMemo(() => {
+    if (fileSize === 0) return '0.0 KB';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB'];
+    const i = Math.floor(Math.log(fileSize) / Math.log(k));
+    return parseFloat((fileSize / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }, [fileSize]);
+
+  // Output Plaintext builder (Exactly [FUNCTION NAME]                 [RVA])
+  const getFormattedResultsText = useCallback((filterText: string = '') => {
+    let output = `[FUNCTION NAME]`.padEnd(32, ' ') + `[RVA]\n`;
+    output += `------------------------------------------------\n`;
+
+    const filtered = UNIQUE_FEATURES.filter(f => {
+      const rva = bulkScanResults[f] || 'Not Found';
+      const isFound = rva !== 'Not Found';
+      return isFound && f.toLowerCase().includes(filterText.toLowerCase());
+    });
+
+    filtered.forEach((feature) => {
+      const rva = bulkScanResults[feature];
+      const mapping = SMART_MAPPINGS.find(m => m.feature === feature);
+      const typeStr = mapping ? ` (${mapping.type.toUpperCase()})` : '';
+      output += `${feature.padEnd(32, ' ')}${rva}${typeStr}\n`;
+    });
+
+    return output;
+  }, [bulkScanResults]);
+
+  const copyToClipboard = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 1500);
+  };
+
+  // Filtered features for card grid listing (only show found features)
+  const filteredFeatures = useMemo(() => {
+    return UNIQUE_FEATURES.filter(f => {
+      const rva = bulkScanResults[f] || 'Not Found';
+      const isFound = rva !== 'Not Found';
+      return isFound && f.toLowerCase().includes(searchQuery.toLowerCase());
+    });
+  }, [searchQuery, bulkScanResults]);
+
+  return (
+    <div className="min-h-screen bg-[#08080c] text-slate-100 font-sans flex flex-col selection:bg-red-500/30 selection:text-red-200 select-none">
+      
+      {/* Decorative Top Glow */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[120px] bg-red-600/10 blur-[100px] pointer-events-none rounded-full" />
+
+      {/* Header bar */}
+      <header className="border-b border-red-950/40 bg-[#0d0d12]/80 backdrop-blur-md sticky top-0 z-40 py-4.5 px-6 shadow-[0_1px_15px_rgba(0,0,0,0.4)]">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-tr from-red-600 to-red-500 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(239,68,68,0.35)] transition-transform duration-300 hover:scale-105">
+              <Flame className="w-5.5 h-5.5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold tracking-widest text-white font-display uppercase">
+                INTERNAL X CHEATS
+              </h1>
+              <p className="text-[10px] text-red-500 uppercase tracking-widest font-bold">DUMP.CS RVA MAPPER</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            {view === 'results' && (
+              <button
+                onClick={handleClear}
+                className="px-3.5 py-1.5 border border-red-500/20 hover:border-red-500/40 bg-red-950/10 hover:bg-red-950/30 text-red-400 hover:text-red-300 rounded-xl text-xs font-semibold tracking-wider font-display transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" /> BACK TO UPLOAD
+              </button>
+            )}
+            <div className="flex flex-col items-end border-l border-slate-800 pl-4">
+              <span className="text-[9px] text-slate-500 uppercase tracking-wider">Engine status</span>
+              {fileContent ? (
+                <span className="text-[11px] font-mono text-red-500 flex items-center gap-1.5 font-bold">
+                  <span className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_#EF4444] animate-pulse" /> BUFFER LOGGED
+                </span>
+              ) : (
+                <span className="text-[11px] font-mono text-slate-600 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-slate-800" /> IDLE SYSTEM
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Subheader / Tabs Bar */}
+      <div className="border-b border-red-950/20 bg-[#09090d]/60 backdrop-blur-md py-2.5 px-6 relative z-30">
+        <div className="max-w-7xl mx-auto flex items-center gap-2">
+          <button
+            onClick={() => setActiveTab('mapper')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold tracking-wider font-display uppercase transition-all flex items-center gap-2 cursor-pointer ${
+              activeTab === 'mapper'
+                ? 'bg-red-500/10 border border-red-500/30 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.05)]'
+                : 'border border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Flame className="w-4 h-4 shrink-0" />
+            <span>DUMP.CS RVA MAPPER</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('hexViewer')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold tracking-wider font-display uppercase transition-all flex items-center gap-2 cursor-pointer ${
+              activeTab === 'hexViewer'
+                ? 'bg-red-500/10 border border-red-500/30 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.05)]'
+                : 'border border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Binary className="w-4 h-4 shrink-0" />
+            <span>LIBIL2CPP HEX VIEWER</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('bones')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold tracking-wider font-display uppercase transition-all flex items-center gap-2 cursor-pointer ${
+              activeTab === 'bones'
+                ? 'bg-red-500/10 border border-red-500/30 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.05)]'
+                : 'border border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Bone className="w-4 h-4 shrink-0" />
+            <span>BONES FINDER</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('direct')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold tracking-wider font-display uppercase transition-all flex items-center gap-2 cursor-pointer ${
+              activeTab === 'direct'
+                ? 'bg-red-500/10 border border-red-500/30 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.05)]'
+                : 'border border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Flame className="w-4 h-4 shrink-0 text-red-500" />
+            <span>DIRECT CODES</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('aimbot')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold tracking-wider font-display uppercase transition-all flex items-center gap-2 cursor-pointer ${
+              activeTab === 'aimbot'
+                ? 'bg-red-500/10 border border-red-500/30 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.05)]'
+                : 'border border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Crosshair className="w-4 h-4 shrink-0 text-red-500" />
+            <span>AIMBOT AI FINDER</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Main stage */}
+      <main className="flex-grow max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col justify-center">
+        
+        <AnimatePresence mode="wait">
+
+          {/* VIEW 1: UPLOAD SCREEN */}
+          {activeTab === 'mapper' && view === 'upload' && (
+            <motion.div
+              key="upload-view"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="max-w-2xl w-full mx-auto"
+            >
+              <div 
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`bg-[#0d0d14]/90 backdrop-blur-xl border rounded-3xl p-8 text-center relative overflow-hidden transition-all duration-300 shadow-2xl ${
+                  isDragging 
+                    ? 'border-red-500 bg-red-500/5 shadow-[0_0_40px_rgba(239,68,68,0.15)]Scale scale-[1.01]' 
+                    : 'border-red-950/30 hover:border-red-500/20'
+                }`}
+              >
+                {/* Dragging state overlay */}
+                <div className={`absolute inset-0 bg-[#08080c]/90 z-20 flex flex-col items-center justify-center transition-opacity duration-300 pointer-events-none ${isDragging ? 'opacity-100' : 'opacity-0'}`}>
+                  <Upload className="w-14 h-14 text-red-500 mb-3 animate-bounce" />
+                  <p className="text-base font-bold text-red-400 font-display">Drop your dump.cs file here</p>
+                  <p className="text-xs text-slate-500 mt-1">Release to start instant automatic mapper scan</p>
+                </div>
+
+                <div className="w-16 h-16 bg-red-950/20 border border-red-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-[0_0_15px_rgba(239,68,68,0.1)]">
+                  <Upload className="w-7 h-7 text-red-500" />
+                </div>
+
+                <h2 className="text-2xl font-bold tracking-tight text-white mb-2 font-display">
+                  Analyze Unity <span className="text-red-500">dump.cs</span> Offsets
+                </h2>
+                
+                <p className="text-sm text-slate-400 max-w-md mx-auto leading-relaxed mb-8">
+                  Upload your C# class dump file to automatically extract RVA values for predefined features. Everything is processed 100% locally inside your web browser.
+                </p>
+
+                {errorMessage && (
+                  <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs font-semibold flex items-center justify-center gap-2">
+                    <X className="w-4 h-4 shrink-0 cursor-pointer" onClick={() => setErrorMessage('')} />
+                    <span>{errorMessage}</span>
+                  </div>
+                )}
+
+                <div className="flex justify-center">
+                  <button
+                    onClick={triggerFileBrowser}
+                    className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white font-bold font-display text-xs rounded-xl shadow-[0_0_20px_rgba(239,68,68,0.3)] hover:shadow-[0_0_25px_rgba(239,68,68,0.45)] hover:scale-[1.02] transition-all cursor-pointer uppercase tracking-wider"
+                  >
+                    SELECT DUMP.CS FILE
+                  </button>
+                </div>
+
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileChange} 
+                  accept=".cs,.txt" 
+                  className="hidden" 
+                />
+
+                <div className="mt-8 pt-6 border-t border-red-950/20 flex items-center justify-center gap-8 text-[11px] text-slate-500 font-mono uppercase">
+                  <span className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-red-500/60" /> BROWSER PERSISTENT
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-red-500/60" /> 100% OFFLINE SECURE
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* VIEW 2: PREMIUM LOADING / SCANNING SCREEN */}
+          {activeTab === 'mapper' && view === 'scanning' && (
+            <motion.div
+              key="scanning-view"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="max-w-md w-full mx-auto text-center"
+            >
+              <div className="bg-[#0d0d14]/90 backdrop-blur-xl border border-red-500/10 rounded-3xl p-10 shadow-2xl relative">
+                
+                {/* Glowing Spinner */}
+                <div className="relative w-20 h-20 mx-auto mb-8">
+                  <div className="absolute inset-0 rounded-full border-4 border-red-950/30"></div>
+                  <div className="absolute inset-0 rounded-full border-4 border-t-red-500 border-r-red-500/40 animate-spin"></div>
+                  <div className="absolute inset-2 bg-[#08080c] rounded-full flex items-center justify-center">
+                    <Flame className="w-7 h-7 text-red-500 animate-pulse" />
+                  </div>
+                </div>
+
+                {/* Loading Messages */}
+                <h3 className="text-xl font-bold text-white mb-2 font-display">
+                  Scanning dump.cs...
+                </h3>
+                <p className="text-sm text-slate-400 font-medium mb-6 animate-pulse">
+                  Please wait...
+                </p>
+
+                {/* Smooth Progress Bar */}
+                <div className="space-y-2 max-w-xs mx-auto">
+                  <div className="w-full bg-red-950/20 h-2 rounded-full overflow-hidden border border-red-500/10 p-[1px]">
+                    <div 
+                      className="bg-gradient-to-r from-red-600 to-red-500 h-full rounded-full transition-all duration-150 shadow-[0_0_10px_#EF4444]"
+                      style={{ width: `${bulkScanProgress}%` }}
+                    ></div>
+                  </div>
+                  <div className="flex justify-between items-center text-[10px] font-mono text-slate-500 uppercase tracking-widest font-bold">
+                    <span>STATUS: PARSING</span>
+                    <span className="text-red-400 font-bold">{bulkScanProgress}%</span>
+                  </div>
+                </div>
+
+                <div className="absolute bottom-4 left-0 right-0 text-[9px] text-slate-600 font-mono uppercase tracking-widest text-center pointer-events-none">
+                  Do not reload page during operation
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* VIEW 3: MAIN RESULTS DASHBOARD */}
+          {activeTab === 'mapper' && view === 'results' && (
+            <motion.div
+              key="results-view"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              className="space-y-6"
+            >
+              
+              {/* Dashboard Action Toolbar */}
+              <div className="bg-[#0d0d14]/80 backdrop-blur-md border border-red-950/30 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl">
+                <div className="flex items-center gap-3 w-full md:w-auto">
+                  <div className="p-2 bg-red-950/20 border border-red-500/20 rounded-xl">
+                    <FileCode className="w-5 h-5 text-red-500" />
+                  </div>
+                  <div className="truncate">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-white font-mono truncate max-w-[200px] sm:max-w-xs">{fileName}</span>
+                      {isDemo && (
+                        <span className="text-[9px] bg-red-500/10 text-red-400 border border-red-500/25 px-2 py-0.5 rounded font-mono uppercase font-bold tracking-widest">SANDBOX</span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-slate-500 font-mono mt-0.5">SIZE: {formattedFileSize} • LINES: {lineCount.toLocaleString()}</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto justify-end">
+                  <button
+                    onClick={triggerFileBrowser}
+                    className="flex-1 sm:flex-none px-4 py-2 bg-slate-900 border border-red-500/20 hover:border-red-500/40 hover:bg-red-950/10 text-red-400 hover:text-red-300 text-xs font-bold font-display rounded-xl tracking-wider uppercase transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <Upload className="w-3.5 h-3.5" /> UPLOAD NEW
+                  </button>
+                  <button
+                    onClick={() => copyToClipboard(getFormattedResultsText(), 'all-features')}
+                    className="flex-1 sm:flex-none px-4 py-2 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white text-xs font-bold font-display rounded-xl tracking-wider uppercase transition-all shadow-[0_0_15px_rgba(239,68,68,0.25)] cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    {copiedId === 'all-features' ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-white" />
+                        <span>COPIED ALL RESULTS!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5 text-white" />
+                        <span>COPY ALL RESULTS</span>
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={handleClear}
+                    className="px-3 py-2 bg-zinc-950 border border-slate-800 text-slate-400 hover:text-red-400 hover:border-red-500/30 rounded-xl text-xs font-bold tracking-wider transition-all cursor-pointer"
+                    title="Clear system state"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Main Content Sections split: Search & results listing */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                
+                {/* LEFT LIST PANEL: grid of mapped RVA values (Col 9) */}
+                <div className="lg:col-span-9 space-y-6">
+                  
+                  {/* Search bar & view toggle row */}
+                  <div className="bg-[#0d0d14]/80 backdrop-blur-md border border-red-950/30 rounded-2xl p-4.5 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
+                    {resultsLayout !== 'viewer' ? (
+                      <div className="relative w-full md:max-w-md">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-500" />
+                        <input 
+                          type="text"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          placeholder="Search predefined features (e.g. FPS, Gun, Ammo)..."
+                          className="w-full bg-[#050508] border border-red-950/40 focus:border-red-500 rounded-xl pl-11 pr-14 py-2.5 text-xs text-white placeholder-slate-600 outline-none transition-all font-mono select-text"
+                          autoComplete="off"
+                          autoCorrect="off"
+                          autoCapitalize="none"
+                          spellCheck="false"
+                        />
+                        {searchQuery && (
+                          <button 
+                            onClick={() => setSearchQuery('')}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] uppercase font-bold text-slate-500 hover:text-red-400 font-mono cursor-pointer"
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] bg-red-950/20 border border-red-500/25 px-2.5 py-1 rounded-lg font-mono text-red-400 font-bold uppercase tracking-widest">
+                          FULL DUMP.CS VIEWER
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+                      <div className="flex items-center gap-1.5 bg-[#050508] border border-red-950/40 p-1 rounded-xl">
+                        <button
+                          onClick={() => setResultsLayout('cards')}
+                          className={`px-3 py-1.5 rounded-lg text-[10px] font-bold font-display tracking-widest transition-all cursor-pointer flex items-center gap-1 ${
+                            resultsLayout === 'cards'
+                              ? 'bg-red-500/10 border border-red-500/20 text-red-400'
+                              : 'text-slate-500 hover:text-slate-300'
+                          }`}
+                        >
+                          <Grid className="w-3 h-3" /> CARDS
+                        </button>
+                        <button
+                          onClick={() => setResultsLayout('plain')}
+                          className={`px-3 py-1.5 rounded-lg text-[10px] font-bold font-display tracking-widest transition-all cursor-pointer flex items-center gap-1 ${
+                            resultsLayout === 'plain'
+                              ? 'bg-red-500/10 border border-red-500/20 text-red-400'
+                              : 'text-slate-500 hover:text-slate-300'
+                          }`}
+                        >
+                          <Terminal className="w-3 h-3" /> PLAIN TEXT
+                        </button>
+                        <button
+                          onClick={() => setResultsLayout('viewer')}
+                          className={`px-3 py-1.5 rounded-lg text-[10px] font-bold font-display tracking-widest transition-all cursor-pointer flex items-center gap-1 ${
+                            resultsLayout === 'viewer'
+                              ? 'bg-red-500/10 border border-red-500/20 text-red-400'
+                              : 'text-slate-500 hover:text-slate-300'
+                          }`}
+                        >
+                          <Binary className="w-3 h-3" /> DUMP.CS VIEWER
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* RESULTS CONTAINER */}
+                  {resultsLayout === 'cards' && (
+                    <div>
+                      {/* Section Header */}
+                      <div className="flex items-center justify-between border-b border-red-950/20 pb-3 mb-4">
+                        <h3 className="text-xs font-bold tracking-widest uppercase font-display text-red-400">FUNCTION</h3>
+                        <span className="text-[10px] bg-red-950/20 border border-red-500/25 px-2 py-0.5 rounded-md font-mono text-red-400 font-bold">
+                          {filteredFeatures.length} FEATURES SHOWING
+                        </span>
+                      </div>
+
+                      {filteredFeatures.length === 0 ? (
+                        <div className="bg-[#0d0d14]/50 border border-red-950/20 rounded-2xl py-16 text-center text-slate-500">
+                          <Search className="w-10 h-10 mx-auto mb-3 text-slate-600 animate-pulse" />
+                          <p className="text-xs uppercase font-bold tracking-widest text-slate-400">No Match Found</p>
+                          <p className="text-[11px] text-slate-500 mt-1">Try adjusting your search filters</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                          {filteredFeatures.map((feature, index) => {
+                            const rva = bulkScanResults[feature] || 'Not Found';
+                            const isFound = rva !== 'Not Found';
+                            const mapping = SMART_MAPPINGS.find(m => m.feature === feature);
+                            const isClickableType = isFound && mapping && ['bool', 'int', 'float'].includes(mapping.type);
+
+                            return (
+                              <motion.div
+                                key={`card-${feature}-${index}`}
+                                initial={{ opacity: 0, scale: 0.98 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ duration: 0.2 }}
+                                onClick={() => {
+                                  if (isClickableType) {
+                                    const { body, funcName } = getFunctionBodyForFeature(feature, rva, fileContent);
+                                    setSelectedFeatureForModal(feature);
+                                    setModalFunctionBody(body);
+                                    setModalRva(rva);
+                                    setModalType(mapping.type);
+                                    setModalFuncName(funcName);
+                                  } else {
+                                    copyToClipboard(rva, `card-rva-${index}`);
+                                  }
+                                }}
+                                className={`bg-[#0d0d14]/80 border rounded-2xl p-5 flex flex-col justify-between gap-4 cursor-pointer relative group transition-all duration-350 overflow-hidden ${
+                                  isFound 
+                                    ? isClickableType 
+                                      ? 'border-red-950/40 hover:border-red-500/60 hover:bg-red-500/10 hover:shadow-[0_0_25px_rgba(239,68,68,0.12)]' 
+                                      : 'border-red-950/40 hover:border-red-500/40 hover:bg-red-500/5 hover:shadow-[0_0_20px_rgba(239,68,68,0.06)]' 
+                                    : 'border-slate-900 opacity-60 hover:opacity-100 hover:border-red-500/10'
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div>
+                                    <h4 className="text-xs font-bold text-white tracking-wide group-hover:text-red-400 transition-colors font-display">
+                                      {feature}
+                                    </h4>
+                                    <span className="text-[9px] uppercase font-mono tracking-widest text-slate-600 mt-1 block">IDENTIFIED ATTRIBUTE</span>
+                                  </div>
+                                  <div className="flex flex-col items-end gap-1 shrink-0">
+                                    <span className={`text-[9px] font-mono px-2 py-0.5 border rounded-md font-bold uppercase transition-all ${
+                                      isFound && mapping ? (
+                                        mapping.type === 'bool' ? 'bg-rose-500/10 border-rose-500/25 text-rose-400' :
+                                        mapping.type === 'int' ? 'bg-blue-500/10 border-blue-500/25 text-blue-400' :
+                                        mapping.type === 'float' ? 'bg-amber-500/10 border-amber-500/25 text-amber-400' :
+                                        'bg-red-500/10 border-red-500/20 text-red-400'
+                                      ) : 'bg-slate-900 border-slate-800 text-slate-500'
+                                    }`}>
+                                      {isFound && mapping ? mapping.type : 'FUNC'}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="border-t border-red-950/15 pt-3 flex items-center justify-between">
+                                  <span className={`text-[10px] font-mono transition-colors ${
+                                    isClickableType ? 'text-red-400 font-bold group-hover:text-red-300' : 'text-slate-500'
+                                  }`}>
+                                    {isClickableType ? 'VIEW CODE ➔' : 'RVA:'}
+                                  </span>
+                                  <span className={`text-xs font-bold font-mono tracking-wide ${
+                                    isFound 
+                                      ? 'text-red-400 group-hover:text-red-300 drop-shadow-[0_0_6px_rgba(239,68,68,0.2)]' 
+                                      : 'text-slate-600'
+                                  }`}>
+                                    {rva}
+                                  </span>
+                                </div>
+
+                                {/* Copied message notification badge */}
+                                <AnimatePresence>
+                                  {copiedId === `card-rva-${index}` && (
+                                    <motion.div 
+                                      initial={{ opacity: 0, y: 10 }}
+                                      animate={{ opacity: 1, y: 0 }}
+                                      exit={{ opacity: 0, y: -10 }}
+                                      className="absolute inset-0 bg-[#0d0d14]/95 backdrop-blur-sm flex items-center justify-center gap-2 z-10"
+                                    >
+                                      <Check className="w-4 h-4 text-red-500" />
+                                      <span className="text-xs font-bold text-red-400 font-display uppercase tracking-wider">COPIED RVA</span>
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+                              </motion.div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {resultsLayout === 'plain' && (
+                    <div className="bg-[#050508] border border-red-950/30 rounded-2xl p-5 shadow-2xl relative">
+                      <div className="flex justify-between items-center pb-3 mb-4 border-b border-red-950/20">
+                        <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500">RAW TERMINAL DISPLAY (FUNCTION ONLY)</span>
+                        <button
+                          onClick={() => copyToClipboard(getFormattedResultsText(searchQuery), 'plain-raw-box')}
+                          className="text-[10px] font-mono font-bold bg-slate-900 border border-red-500/20 hover:border-red-500/40 text-red-400 hover:text-red-300 px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5"
+                        >
+                          {copiedId === 'plain-raw-box' ? 'COPIED!' : 'COPY'}
+                        </button>
+                      </div>
+                      <pre className="text-slate-300 font-mono text-[11px] sm:text-xs overflow-x-auto whitespace-pre leading-relaxed p-4 bg-[#08080c] rounded-xl border border-red-950/20 max-h-[500px] select-text">
+                        {getFormattedResultsText(searchQuery)}
+                      </pre>
+                    </div>
+                  )}
+
+                  {resultsLayout === 'viewer' && (
+                    <div className="bg-[#050508] border border-red-950/20 rounded-2xl p-5 shadow-2xl relative flex flex-col gap-4">
+                      {/* Search & Navigation Control Bar */}
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-red-950/25">
+                        <div className="relative flex-1 flex items-center">
+                          <div className="relative w-full">
+                            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500/60" />
+                            <input 
+                              type="text"
+                              value={viewerSearchInput}
+                              onChange={(e) => setViewerSearchInput(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleViewerSearch();
+                                }
+                              }}
+                              placeholder="Full-text search entire Dump.cs (e.g. IsHighFPS, get_UserCoins)..."
+                              className="w-full bg-[#08080c] border border-red-950/40 focus:border-red-500 rounded-xl pl-10 pr-28 py-2.5 text-xs text-white placeholder-slate-600 outline-none transition-all font-mono select-text"
+                              autoComplete="off"
+                              autoCorrect="off"
+                              autoCapitalize="none"
+                              spellCheck="false"
+                            />
+                            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                              {viewerSearchInput && (
+                                <button 
+                                  onClick={handleClearViewerSearch}
+                                  className="text-[10px] uppercase font-bold text-slate-500 hover:text-red-400 font-mono cursor-pointer px-1 py-1"
+                                >
+                                  Clear
+                                </button>
+                              )}
+                              <button
+                                onClick={handleViewerSearch}
+                                className="bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white font-bold font-display text-[10px] tracking-widest uppercase px-3.5 py-1.5 rounded-lg transition-all cursor-pointer shadow-[0_0_8px_rgba(239,68,68,0.3)]"
+                              >
+                                Search
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Search Metrics */}
+                        <div className="flex items-center gap-3.5 shrink-0 justify-between md:justify-end">
+                          {viewerSearchQuery && (
+                            <div className="flex items-center gap-2 bg-red-950/10 border border-red-950/30 px-3.5 py-1.5 rounded-xl">
+                              <span className="text-[10px] uppercase font-mono tracking-wider text-slate-500">
+                                Matches:
+                              </span>
+                              {dumpMatches.length > 0 ? (
+                                <span className="text-xs font-bold font-mono text-red-400">
+                                  {activeMatchIdx + 1} <span className="text-slate-600">/</span> {dumpMatches.length}
+                                </span>
+                              ) : (
+                                <span className="text-xs font-bold font-mono text-slate-500">0</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Code Viewer Display with Custom Premium Scrollbar */}
+                      <div className="relative bg-[#020204] border border-red-950/15 rounded-xl overflow-hidden shadow-inner">
+                        {/* Line counts header */}
+                        <div className="flex bg-[#06060a] border-b border-red-950/15 py-1.5 px-4 text-[10px] font-mono tracking-wider text-slate-500 font-semibold select-none">
+                          <div className="w-16 shrink-0 text-right pr-4 border-r border-red-950/10">LINE #</div>
+                          <div className="pl-4">SOURCE CODE CONTENT (DUMP.CS)</div>
+                        </div>
+
+                        {/* Scrollable Pre Box */}
+                        <div 
+                          className="max-h-[600px] overflow-y-auto overflow-x-auto premium-scrollbar p-1 select-text scroll-smooth"
+                          id="dump-text-viewer"
+                        >
+                          <div className="font-mono text-xs leading-relaxed pt-2 pb-20 w-full min-w-max">
+                            {renderedLinesSlice.map((line, idx) => {
+                              const currentLineNumber = startIndex + idx + 1;
+                              const isLineActiveMatch = dumpMatches.length > 0 && activeMatchIdx !== -1 && dumpMatches[activeMatchIdx].lineIdx === (startIndex + idx);
+                              
+                              return (
+                                <div 
+                                  key={`line-${currentLineNumber}`}
+                                  className={`flex group transition-colors duration-150 ${
+                                    isLineActiveMatch 
+                                      ? 'bg-red-500/10 border-l-2 border-red-500' 
+                                      : 'hover:bg-red-500/[0.01]'
+                                  }`}
+                                >
+                                  {/* Line numbers column */}
+                                  <div 
+                                    className={`w-16 shrink-0 text-right pr-4 font-mono text-[10px] select-none border-r border-red-950/5 mr-4 flex justify-end items-center py-0.5 ${
+                                      isLineActiveMatch ? 'text-red-400 font-bold' : 'text-slate-600'
+                                    }`}
+                                  >
+                                    {currentLineNumber}
+                                  </div>
+
+                                  {/* Line text */}
+                                  <pre className="font-mono text-xs text-slate-300 break-normal whitespace-pre pr-4 py-0.5 flex-1 select-text">
+                                    {renderViewerLine(line, startIndex + idx)}
+                                  </pre>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Premium Floating Glassmorphism Navigation Panel */}
+                        <AnimatePresence>
+                          {resultsLayout === 'viewer' && dumpMatches.length > 0 && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.9, y: 15 }}
+                              animate={{ opacity: 1, scale: 1, y: 0 }}
+                              exit={{ opacity: 0, scale: 0.9, y: 15 }}
+                              transition={{ duration: 0.25, ease: "easeOut" }}
+                              className="absolute bottom-5 right-5 z-20 bg-[#08080c]/85 backdrop-blur-md border border-red-500/25 rounded-xl p-2 shadow-[0_4px_30px_rgba(239,68,68,0.2)] flex items-center gap-3 select-none"
+                            >
+                              {/* Previous match (↑) */}
+                              <button
+                                onClick={() => {
+                                  setActiveMatchIdx(prev => (prev - 1 + dumpMatches.length) % dumpMatches.length);
+                                }}
+                                className="p-2 rounded-lg bg-slate-900 hover:bg-red-500/10 border border-red-500/20 hover:border-red-500/40 text-red-400 hover:text-red-300 transition-all cursor-pointer flex items-center justify-center font-bold"
+                                title="Previous match (↑)"
+                              >
+                                <ChevronUp className="w-4.5 h-4.5" />
+                              </button>
+
+                              {/* Metrics */}
+                              <div className="text-center min-w-[75px] font-mono text-xs">
+                                <span className="text-red-400 font-extrabold">{activeMatchIdx + 1}</span>
+                                <span className="text-slate-600 px-1 font-semibold">/</span>
+                                <span className="text-slate-400 font-semibold">{dumpMatches.length}</span>
+                              </div>
+
+                              {/* Next match (↓) */}
+                              <button
+                                onClick={() => {
+                                  setActiveMatchIdx(prev => (prev + 1) % dumpMatches.length);
+                                }}
+                                className="p-2 rounded-lg bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white transition-all cursor-pointer flex items-center justify-center shadow-[0_0_12px_rgba(239,68,68,0.35)]"
+                                title="Next match (↓)"
+                              >
+                                <ChevronDown className="w-4.5 h-4.5" />
+                              </button>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+
+                      {/* Pagination & Status Footer */}
+                      <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 text-slate-400 text-xs font-mono select-none">
+                        <div>
+                          {viewerSearchQuery ? (
+                            <span className="text-red-400 font-semibold bg-red-950/10 px-2.5 py-1 rounded-lg border border-red-500/10">
+                              Showing matching region (lines {startIndex + 1} - {startIndex + renderedLinesSlice.length} of {dumpLines.length})
+                            </span>
+                          ) : (
+                            <span>
+                              Showing lines <span className="text-slate-200 font-bold">{startIndex + 1}</span> - <span className="text-slate-200 font-bold">{startIndex + renderedLinesSlice.length}</span> of <span className="text-slate-200 font-bold">{dumpLines.length.toLocaleString()}</span> lines
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Pagination Buttons (Only visible when not filtering, or when dumpLines.length is greater than WINDOW_SIZE) */}
+                        {!viewerSearchQuery && dumpLines.length > WINDOW_SIZE && (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => setCurrentPage(0)}
+                              disabled={currentPage === 0}
+                              className={`px-2.5 py-1.5 rounded-lg border text-[10px] font-bold uppercase tracking-wider transition-all ${
+                                currentPage === 0
+                                  ? 'bg-slate-950/40 border-slate-900 text-slate-600 cursor-not-allowed'
+                                  : 'bg-slate-900 hover:bg-slate-800 border-red-500/20 text-red-400 hover:text-red-300 cursor-pointer'
+                              }`}
+                            >
+                              « First
+                            </button>
+                            <button
+                              onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
+                              disabled={currentPage === 0}
+                              className={`px-2.5 py-1.5 rounded-lg border text-[10px] font-bold uppercase tracking-wider transition-all ${
+                                currentPage === 0
+                                  ? 'bg-slate-950/40 border-slate-900 text-slate-600 cursor-not-allowed'
+                                  : 'bg-slate-900 hover:bg-slate-800 border-red-500/20 text-red-400 hover:text-red-300 cursor-pointer'
+                              }`}
+                            >
+                              ‹ Prev
+                            </button>
+                            <span className="px-3 py-1.5 text-[11px] bg-[#08080c] border border-red-950/30 rounded-lg text-slate-300 font-bold">
+                              Page {currentPage + 1} / {Math.ceil(dumpLines.length / WINDOW_SIZE)}
+                            </span>
+                            <button
+                              onClick={() => setCurrentPage(prev => Math.min(Math.ceil(dumpLines.length / WINDOW_SIZE) - 1, prev + 1))}
+                              disabled={currentPage === Math.ceil(dumpLines.length / WINDOW_SIZE) - 1}
+                              className={`px-2.5 py-1.5 rounded-lg border text-[10px] font-bold uppercase tracking-wider transition-all ${
+                                currentPage === Math.ceil(dumpLines.length / WINDOW_SIZE) - 1
+                                  ? 'bg-slate-950/40 border-slate-900 text-slate-600 cursor-not-allowed'
+                                  : 'bg-slate-900 hover:bg-slate-800 border-red-500/20 text-red-400 hover:text-red-300 cursor-pointer'
+                              }`}
+                            >
+                              Next ›
+                            </button>
+                            <button
+                              onClick={() => setCurrentPage(Math.ceil(dumpLines.length / WINDOW_SIZE) - 1)}
+                              disabled={currentPage === Math.ceil(dumpLines.length / WINDOW_SIZE) - 1}
+                              className={`px-2.5 py-1.5 rounded-lg border text-[10px] font-bold uppercase tracking-wider transition-all ${
+                                currentPage === Math.ceil(dumpLines.length / WINDOW_SIZE) - 1
+                                  ? 'bg-slate-950/40 border-slate-900 text-slate-600 cursor-not-allowed'
+                                  : 'bg-slate-900 hover:bg-slate-800 border-red-500/20 text-red-400 hover:text-red-300 cursor-pointer'
+                              }`}
+                            >
+                              Last »
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+
+                {/* RIGHT SYSTEM PANEL: details & diagnostics (Col 3) */}
+                <div className="lg:col-span-3 space-y-6">
+                  
+                  {/* Scan Info Widget */}
+                  <div className="bg-[#0d0d14]/80 backdrop-blur-md border border-red-950/30 rounded-2xl p-5 shadow-xl">
+                    <h3 className="text-xs font-bold tracking-widest uppercase text-white font-display border-b border-red-950/20 pb-3 mb-4 flex items-center gap-1.5">
+                      <Flame className="w-4 h-4 text-red-500" /> METRIC REPORT
+                    </h3>
+
+                    <div className="space-y-4 font-mono text-[11px]">
+                      <div className="bg-[#050508] p-3 rounded-xl border border-red-950/20">
+                        <span className="text-slate-500 text-[10px] uppercase block tracking-wider font-semibold">Active Offsets</span>
+                        <span className="text-sm font-bold text-white">
+                          {Object.values(bulkScanResults).filter(v => v !== 'Not Found').length} / {UNIQUE_FEATURES.length} FOUND
+                        </span>
+                      </div>
+                      <div className="bg-[#050508] p-3 rounded-xl border border-red-950/20">
+                        <span className="text-slate-500 text-[10px] uppercase block tracking-wider font-semibold">Scan Duration</span>
+                        <span className="text-sm font-bold text-red-400">{bulkScanTime} ms</span>
+                      </div>
+                      <div className="bg-[#050508] p-3 rounded-xl border border-red-950/20">
+                        <span className="text-slate-500 text-[10px] uppercase block tracking-wider font-semibold">Security Integrity</span>
+                        <span className="text-[11px] text-green-500 font-bold flex items-center gap-1 mt-1">
+                          ✓ SECURED CLIENT-SIDE
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* System Explainer */}
+                  <div className="bg-[#0d0d14]/80 backdrop-blur-md border border-red-950/30 rounded-2xl p-5 shadow-xl">
+                    <h3 className="text-xs font-bold tracking-widest uppercase text-white font-display border-b border-red-950/20 pb-3 mb-3">
+                      SYSTEM TIPS
+                    </h3>
+                    <p className="text-slate-400 text-xs leading-relaxed space-y-2">
+                      Click any card to automatically copy its extracted RVA offset directly into your computer clipboard. Use plain text view for batch copying mappings.
+                    </p>
+                  </div>
+
+                </div>
+
+              </div>
+            </motion.div>
+          )}
+
+          {/* VIEW 4: LIBIL2CPP HEX VIEWER TAB */}
+          {activeTab === 'hexViewer' && (
+            <motion.div
+              key="hex-viewer-view"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="max-w-4xl w-full mx-auto space-y-6 select-none"
+            >
+              {/* Header Info Banner */}
+              <div className="bg-[#0d0d14]/90 backdrop-blur-xl border border-red-950/30 rounded-3xl p-6 md:p-8 relative overflow-hidden shadow-2xl">
+                <div className="absolute top-0 right-0 w-[150px] h-[150px] bg-red-600/5 blur-[50px] pointer-events-none rounded-full" />
+                
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                  <div>
+                    <h2 className="text-2xl font-bold tracking-tight text-white mb-2 font-display flex items-center gap-3">
+                      <Binary className="w-7 h-7 text-red-500" />
+                      LIBIL2CPP HEX VIEWER
+                    </h2>
+                    <p className="text-xs md:text-sm text-slate-400 max-w-xl leading-relaxed">
+                      Securely parse binary bytes of your uploaded <span className="text-red-400 font-mono font-semibold">libil2cpp.so</span> file completely client-side. Jump to specific memory offsets instantly.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={handleHexClear}
+                      className="px-4 py-2 border border-red-500/20 hover:border-red-500/40 bg-red-950/10 hover:bg-red-950/30 text-red-400 hover:text-red-300 rounded-xl text-xs font-bold tracking-wider font-display transition-all cursor-pointer flex items-center gap-1.5 uppercase"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Clear
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('mapper')}
+                      className="px-4 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-red-500/30 text-slate-300 hover:text-white rounded-xl text-xs font-bold tracking-wider font-display transition-all cursor-pointer flex items-center gap-1.5 uppercase"
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5" /> Back
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Error Alert Display */}
+              {hexError && (
+                <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-xs font-semibold flex items-center gap-2.5 shadow-lg animate-pulse select-text">
+                  <X className="w-4 h-4 shrink-0 cursor-pointer" onClick={() => setHexError('')} />
+                  <span>{hexError}</span>
+                </div>
+              )}
+
+              {/* Upload & Offset Controls Row */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* 1. Drag & Drop Upload Card */}
+                <div 
+                  onDragOver={handleHexDragOver}
+                  onDragLeave={handleHexDragLeave}
+                  onDrop={handleHexDrop}
+                  className={`bg-[#0d0d14]/90 backdrop-blur-xl border rounded-3xl p-6 text-center relative overflow-hidden transition-all duration-300 shadow-2xl flex flex-col justify-center min-h-[220px] ${
+                    isHexDragging 
+                      ? 'border-red-500 bg-red-500/5 shadow-[0_0_40px_rgba(239,68,68,0.15)] scale-[1.01]' 
+                      : 'border-red-950/30 hover:border-red-500/20'
+                  }`}
+                >
+                  {/* Drag overlay */}
+                  {isHexDragging && (
+                    <div className="absolute inset-0 bg-[#08080c]/90 z-20 flex flex-col items-center justify-center transition-opacity duration-300 pointer-events-none">
+                      <Upload className="w-10 h-10 text-red-500 mb-2 animate-bounce" />
+                      <p className="text-sm font-bold text-red-400 font-display">Drop libil2cpp.so file here</p>
+                    </div>
+                  )}
+
+                  {!hexUploadSuccess ? (
+                    <div className="space-y-4">
+                      <div className="w-12 h-12 bg-red-950/20 border border-red-500/20 rounded-xl flex items-center justify-center mx-auto shadow-[0_0_15px_rgba(239,68,68,0.05)]">
+                        <Upload className="w-5.5 h-5.5 text-red-500" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-white font-display uppercase tracking-wider">Select libil2cpp.so</h3>
+                        <p className="text-[11px] text-slate-500 mt-1 max-w-xs mx-auto">
+                          Drag and drop or browse to load file. Processed fully offline.
+                        </p>
+                      </div>
+                      <div>
+                        <button
+                          onClick={triggerHexFileBrowser}
+                          className="px-5 py-2.5 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white font-bold font-display text-[10px] rounded-lg shadow-[0_0_15px_rgba(239,68,68,0.2)] hover:scale-[1.02] transition-all cursor-pointer uppercase tracking-wider"
+                        >
+                          Upload File
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="w-12 h-12 bg-emerald-950/20 border border-emerald-500/20 rounded-xl flex items-center justify-center mx-auto shadow-[0_0_15px_rgba(16,185,129,0.05)]">
+                        <Check className="w-5.5 h-5.5 text-emerald-500" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 px-2 py-0.5 rounded font-mono uppercase font-bold tracking-widest">
+                          Upload Successful
+                        </span>
+                        <h3 className="text-sm font-mono font-bold text-white mt-2.5 truncate max-w-[250px] mx-auto">
+                          {hexFileName}
+                        </h3>
+                        <p className="text-[10px] text-slate-500 font-mono mt-0.5">
+                          SIZE: {formattedHexFileSize}
+                        </p>
+                      </div>
+                      <div>
+                        <button
+                          onClick={triggerHexFileBrowser}
+                          className="text-[10px] font-bold uppercase tracking-wider font-display bg-red-950/15 hover:bg-red-950/35 border border-red-500/20 text-red-400 py-1.5 px-3 rounded-lg transition-all cursor-pointer"
+                        >
+                          Replace File
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <input 
+                    type="file" 
+                    ref={hexFileInputRef} 
+                    onChange={handleHexFileChange} 
+                    accept=".so" 
+                    className="hidden" 
+                  />
+                </div>
+
+                {/* 2. Jump to Offset Input Card */}
+                <div className="bg-[#0d0d14]/90 backdrop-blur-xl border border-red-950/30 rounded-3xl p-6 shadow-2xl flex flex-col justify-between min-h-[220px]">
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-bold tracking-widest uppercase text-red-400 font-display flex items-center gap-2">
+                      <Terminal className="w-4 h-4 text-red-500" />
+                      JUMP TO FILE OFFSET
+                    </h3>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      Input the hexadecimal target offset from dump.cs (e.g. <span className="text-slate-400 font-mono">0x7F17870</span> or <span className="text-slate-400 font-mono">7F17870</span>). The system automatically handles prefixes.
+                    </p>
+                    
+                    <div className="relative">
+                      <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-red-500 font-mono font-bold text-xs">
+                        0x
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="7F17870"
+                        value={hexOffsetInput.toLowerCase().startsWith('0x') ? hexOffsetInput.slice(2) : hexOffsetInput}
+                        onChange={(e) => {
+                          const val = e.target.value.trim();
+                          setHexOffsetInput(val);
+                        }}
+                        className="w-full bg-[#050508] border border-red-950/20 rounded-xl py-3 pl-9 pr-4 text-xs font-mono text-slate-200 placeholder-slate-600 focus:outline-none focus:border-red-500/40 transition-all uppercase tracking-widest"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-4">
+                    <button
+                      onClick={handleReadHex}
+                      disabled={!hexUploadSuccess || !hexOffsetInput}
+                      className={`w-full py-3 text-center text-xs font-bold font-display rounded-xl tracking-wider uppercase transition-all flex items-center justify-center gap-2 ${
+                        hexUploadSuccess && hexOffsetInput
+                          ? 'bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white cursor-pointer shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:scale-[1.01]'
+                          : 'bg-slate-900 border border-slate-800 text-slate-600 cursor-not-allowed'
+                      }`}
+                    >
+                      <Binary className="w-4 h-4" />
+                      <span>Read File Segment</span>
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Hex Output Terminal Card */}
+              {hexBytes && (
+                <div className="bg-[#0d0d14]/90 backdrop-blur-xl border border-red-950/30 rounded-3xl p-6 shadow-2xl space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-red-950/20 pb-4">
+                    <div>
+                      <h3 className="text-xs font-bold tracking-widest uppercase text-red-400 font-display flex items-center gap-2">
+                        <Terminal className="w-4 h-4 text-red-500 animate-pulse" />
+                        HEX DATA OUTPUT (128 BYTES)
+                      </h3>
+                      <p className="text-[10px] text-slate-500 font-mono mt-0.5 select-text">
+                        OFFSET: 0x{(hexOffsetInput.toLowerCase().startsWith('0x') ? hexOffsetInput.slice(2) : hexOffsetInput).toUpperCase()} • SIZE: 128 BYTES (16 PER ROW)
+                      </p>
+                    </div>
+                    
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={handleCopySelectedHex}
+                        className="text-[10px] font-bold uppercase tracking-wider font-display bg-red-950/20 hover:bg-red-900/30 border border-red-500/20 hover:border-red-500/40 text-red-400 hover:text-red-300 py-1.5 px-3 rounded-lg transition-all cursor-pointer flex items-center gap-1.5"
+                      >
+                        {hexCopiedFeedback === 'selected' ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                            <span className="text-emerald-400">Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>Copy Selected</span>
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        onClick={handleCopyAllHex}
+                        className="text-[10px] font-bold uppercase tracking-wider font-display bg-red-950/20 hover:bg-red-900/30 border border-red-500/20 hover:border-red-500/40 text-red-400 hover:text-red-300 py-1.5 px-3 rounded-lg transition-all cursor-pointer flex items-center gap-1.5"
+                      >
+                        {hexCopiedFeedback === 'all' ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                            <span className="text-emerald-400">All Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>Copy All</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Hex Output Box */}
+                  <div className="bg-[#050508] border border-red-950/40 rounded-2xl p-6 font-mono text-sm sm:text-base md:text-lg leading-relaxed text-red-400 select-text overflow-x-auto shadow-inner relative group">
+                    <pre className="whitespace-pre-wrap select-text selection:bg-red-500/30 selection:text-red-100 uppercase tracking-widest font-mono">
+                      {formattedHexRows.join('\n')}
+                    </pre>
+                  </div>
+
+                  <div className="text-[10px] text-slate-500 font-mono flex items-center justify-between">
+                    <span>SELECTION MODE: ACTIVE</span>
+                    <span>DRAG CURSOR OVER BYTES TO HIGHLIGHT</span>
+                  </div>
+                </div>
+              )}
+
+            </motion.div>
+          )}
+
+          {/* VIEW 5: BONES FINDER TAB */}
+          {activeTab === 'bones' && (
+            <motion.div
+              key="bones-view-container"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="max-w-4xl w-full mx-auto space-y-6"
+            >
+              {bonesView === 'upload' && (
+                <motion.div
+                  key="bones-upload-view"
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  transition={{ duration: 0.2 }}
+                  className="max-w-2xl w-full mx-auto"
+                >
+                  <div 
+                    onDragOver={handleBonesDragOver}
+                    onDragLeave={handleBonesDragLeave}
+                    onDrop={handleBonesDrop}
+                    className={`bg-[#0d0d14]/90 backdrop-blur-xl border rounded-3xl p-8 text-center relative overflow-hidden transition-all duration-300 shadow-2xl ${
+                      isBonesDragging 
+                        ? 'border-red-500 bg-red-500/5 shadow-[0_0_40px_rgba(239,68,68,0.15)] scale-[1.01]' 
+                        : 'border-red-950/30 hover:border-red-500/20'
+                    }`}
+                  >
+                    {/* Dragging state overlay */}
+                    <div className={`absolute inset-0 bg-[#08080c]/90 z-20 flex flex-col items-center justify-center transition-opacity duration-300 pointer-events-none ${isBonesDragging ? 'opacity-100' : 'opacity-0'}`}>
+                      <Upload className="w-14 h-14 text-red-500 mb-3 animate-bounce" />
+                      <p className="text-base font-bold text-red-400 font-display">Drop your Dump.cs file here</p>
+                      <p className="text-xs text-slate-500 mt-1">Release to start automatic bone structure scan</p>
+                    </div>
+
+                    <div className="w-16 h-16 bg-red-950/20 border border-red-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-[0_0_15px_rgba(239,68,68,0.1)]">
+                      <Bone className="w-7 h-7 text-red-500" />
+                    </div>
+
+                    <h2 className="text-2xl font-bold tracking-tight text-white mb-2 font-display">
+                      Scan Unity <span className="text-red-500">Bones</span> Offsets
+                    </h2>
+                    
+                    <p className="text-sm text-slate-400 max-w-md mx-auto leading-relaxed mb-8">
+                      Upload your Dump.cs file to automatically scan and find the memory offsets for structural player bones. Everything is processed locally in your browser.
+                    </p>
+
+                    {bonesErrorMessage && (
+                      <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs font-semibold flex items-center justify-center gap-2">
+                        <X className="w-4 h-4 shrink-0 cursor-pointer" onClick={() => setBonesErrorMessage('')} />
+                        <span>{bonesErrorMessage}</span>
+                      </div>
+                    )}
+
+                    <div className="flex flex-col items-center gap-4 justify-center">
+                      <button
+                        onClick={triggerBonesFileBrowser}
+                        className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white font-bold font-display text-xs rounded-xl shadow-[0_0_20px_rgba(239,68,68,0.3)] hover:shadow-[0_0_25px_rgba(239,68,68,0.45)] hover:scale-[1.02] transition-all cursor-pointer uppercase tracking-wider"
+                      >
+                        SELECT DUMP.CS FILE
+                      </button>
+                    </div>
+
+                    <input 
+                      type="file" 
+                      ref={bonesFileInputRef} 
+                      onChange={handleBonesFileChange} 
+                      accept=".cs,.txt" 
+                      className="hidden" 
+                    />
+
+                    <div className="mt-8 pt-6 border-t border-red-950/20 flex items-center justify-center gap-8 text-[11px] text-slate-500 font-mono uppercase">
+                      <span className="flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-red-500/60" /> BROWSER PERSISTENT
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-red-500/60" /> 100% OFFLINE SECURE
+                      </span>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {bonesView === 'scanning' && (
+                <motion.div
+                  key="bones-scanning-view"
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="max-w-md w-full mx-auto text-center"
+                >
+                  <div className="bg-[#0d0d14]/90 backdrop-blur-xl border border-red-500/10 rounded-3xl p-10 shadow-2xl relative">
+                    {/* Glowing Spinner */}
+                    <div className="relative w-20 h-20 mx-auto mb-8">
+                      <div className="absolute inset-0 rounded-full border-4 border-red-950/30"></div>
+                      <div className="absolute inset-0 rounded-full border-4 border-t-red-500 border-r-red-500/40 animate-spin"></div>
+                      <div className="absolute inset-2 bg-[#08080c] rounded-full flex items-center justify-center">
+                        <Bone className="w-7 h-7 text-red-500 animate-pulse" />
+                      </div>
+                    </div>
+
+                    {/* Loading Messages */}
+                    <h3 className="text-xl font-bold text-white mb-2 font-display">
+                      Scanning for Bone Strings...
+                    </h3>
+                    <p className="text-sm text-slate-400 font-medium mb-6 animate-pulse">
+                      Parsing Dump.cs structures...
+                    </p>
+
+                    {/* Progress Bar */}
+                    <div className="space-y-2 max-w-xs mx-auto">
+                      <div className="w-full bg-red-950/20 h-2 rounded-full overflow-hidden border border-red-500/10 p-[1px]">
+                        <div 
+                          className="bg-gradient-to-r from-red-600 to-red-500 h-full rounded-full transition-all duration-150 shadow-[0_0_10px_#EF4444]"
+                          style={{ width: `${bonesScanProgress}%` }}
+                        ></div>
+                      </div>
+                      <div className="flex justify-between items-center text-[10px] font-mono text-slate-500 uppercase tracking-widest font-bold">
+                        <span>STATUS: SEARCHING</span>
+                        <span className="text-red-400 font-bold">{bonesScanProgress}%</span>
+                      </div>
+                    </div>
+
+                    <div className="absolute bottom-4 left-0 right-0 text-[9px] text-slate-600 font-mono uppercase tracking-widest text-center pointer-events-none">
+                      Secured Sandbox Processing
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {bonesView === 'results' && (
+                <motion.div
+                  key="bones-results-view"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className="space-y-6"
+                >
+                  {/* Action Toolbar */}
+                  <div className="bg-[#0d0d14]/80 backdrop-blur-md border border-red-950/30 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl">
+                    <div className="flex items-center gap-3 w-full md:w-auto">
+                      <div className="p-2 bg-red-950/20 border border-red-500/20 rounded-xl">
+                        <Bone className="w-5 h-5 text-red-500" />
+                      </div>
+                      <div className="truncate">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-white font-mono truncate max-w-[200px] sm:max-w-xs">{bonesFileName}</span>
+                          {isBonesDemo && (
+                            <span className="text-[9px] bg-red-500/10 text-red-400 border border-red-500/25 px-2 py-0.5 rounded font-mono uppercase font-bold tracking-widest">SANDBOX</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[10px] text-slate-500 font-mono font-medium">SIZE: {(bonesFileSize / 1024).toFixed(1)} KB</span>
+                          <span className="text-slate-700 font-mono">•</span>
+                          <span className="text-[10px] text-slate-500 font-mono font-medium">{bonesResults.length} BONES FOUND</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+                      {/* Copy All */}
+                      <button
+                        onClick={() => {
+                          const tableStr = [
+                            "Bone Name".padEnd(16) + "Offset",
+                            ...bonesResults.map(r => r.boneName.padEnd(16) + r.offset)
+                          ].join("\n");
+                          navigator.clipboard.writeText(tableStr);
+                          setBonesCopiedAll(true);
+                          setTimeout(() => setBonesCopiedAll(false), 1500);
+                        }}
+                        disabled={bonesResults.length === 0}
+                        className="px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white font-bold font-display text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1.5 uppercase disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+                      >
+                        {bonesCopiedAll ? (
+                          <>
+                            <Check className="w-4 h-4" />
+                            <span>ALL COPIED!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-4 h-4" />
+                            <span>COPY ALL</span>
+                          </>
+                        )}
+                      </button>
+
+                      {/* Back */}
+                      <button
+                        onClick={() => {
+                          setBonesView('upload');
+                          setBonesResults([]);
+                          setBonesFileContent('');
+                          setBonesFileName('');
+                          setBonesFileSize(0);
+                        }}
+                        className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-red-500/30 text-slate-300 hover:text-white font-bold font-display text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1.5 uppercase"
+                      >
+                        <ArrowLeft className="w-4 h-4" />
+                        <span>BACK</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Results Display */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Main Results Table */}
+                    <div className="lg:col-span-2 bg-[#0d0d14]/95 backdrop-blur-xl border border-red-950/30 rounded-3xl overflow-hidden shadow-2xl flex flex-col">
+                      <div className="p-5 border-b border-red-950/25 flex items-center justify-between bg-red-950/[0.05]">
+                        <h3 className="text-xs font-bold tracking-widest uppercase text-white font-display flex items-center gap-2">
+                          <Terminal className="w-4 h-4 text-red-500 animate-pulse" />
+                          EXTRACTED BONE OFFSETS
+                        </h3>
+                        <span className="text-[10px] bg-red-500/10 text-red-400 border border-red-500/20 px-2 py-0.5 rounded font-mono font-bold tracking-wider">
+                          IL2CPP ALIGNED
+                        </span>
+                      </div>
+
+                      {bonesResults.length === 0 ? (
+                        <div className="flex-grow flex flex-col items-center justify-center py-20 text-slate-500">
+                          <X className="w-12 h-12 text-slate-700 mb-3 animate-pulse" />
+                          <span className="font-semibold text-sm">NO TARGET BONE STRINGS FOUND IN FILE</span>
+                          <p className="text-xs text-slate-600 mt-1 max-w-xs text-center">Make sure the file contains active obfuscated signatures of bone structures.</p>
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left border-collapse">
+                            <thead>
+                              <tr className="border-b border-red-950/20 bg-red-950/[0.02]">
+                                <th className="p-4 text-[10px] font-bold tracking-widest uppercase text-slate-500 font-display">Bone Name</th>
+                                <th className="p-4 text-[10px] font-bold tracking-widest uppercase text-slate-500 font-display">Offset</th>
+                                <th className="p-4 text-[10px] font-bold tracking-widest uppercase text-slate-500 font-display text-right">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-red-950/10 font-mono text-xs">
+                              {bonesResults.map((bone, idx) => (
+                                <tr key={idx} className="hover:bg-red-500/[0.02] transition-colors duration-150 group">
+                                  <td className="p-4 font-bold text-white font-sans">{bone.boneName}</td>
+                                  <td className="p-4 text-emerald-400 font-bold">{bone.offset}</td>
+                                  <td className="p-4 text-right">
+                                    <button
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(bone.offset);
+                                        setBonesCopiedId(bone.boneName);
+                                        setTimeout(() => setBonesCopiedId(null), 1500);
+                                      }}
+                                      className="p-1.5 bg-slate-900 hover:bg-red-500/10 text-slate-400 hover:text-red-400 border border-slate-800 hover:border-red-500/20 rounded-lg transition-all cursor-pointer"
+                                      title="Copy Offset"
+                                    >
+                                      {bonesCopiedId === bone.boneName ? (
+                                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                      ) : (
+                                        <Copy className="w-3.5 h-3.5" />
+                                      )}
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Sidebar metadata & analytics panels */}
+                    <div className="space-y-6">
+                      <div className="bg-[#0d0d14]/90 backdrop-blur-xl border border-red-950/30 rounded-3xl p-6 shadow-2xl space-y-4">
+                        <h3 className="text-xs font-bold tracking-widest uppercase text-white font-display border-b border-red-950/20 pb-3">
+                          METRICS & PERFORMANCE
+                        </h3>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="bg-[#050508] p-3 rounded-xl border border-red-950/20">
+                            <span className="text-slate-500 text-[10px] uppercase block tracking-wider font-semibold">Scan Speed</span>
+                            <span className="text-sm font-bold text-red-400 block mt-1">{bonesScanTime} ms</span>
+                          </div>
+                          <div className="bg-[#050508] p-3 rounded-xl border border-red-950/20">
+                            <span className="text-slate-500 text-[10px] uppercase block tracking-wider font-semibold">Integrity</span>
+                            <span className="text-[11px] text-green-500 font-bold flex items-center gap-1 mt-1 font-sans">
+                              ✓ SECURE
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-[#0d0d14]/80 backdrop-blur-md border border-red-950/30 rounded-2xl p-5 shadow-xl">
+                        <h3 className="text-xs font-bold tracking-widest uppercase text-white font-display border-b border-red-950/20 pb-3 mb-3">
+                          BONES FINDER SYSTEM
+                        </h3>
+                        <p className="text-slate-400 text-xs leading-relaxed">
+                          This system performs instant scanning of local class structure dumps. Clicking the copy button next to an offset copies it. "Copy All" prepares a tabbed alignment list suitable for immediate C++ structure mapping.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </motion.div>
+          )}
+
+          {/* VIEW 6: DIRECT CODES TAB */}
+          {activeTab === 'direct' && (
+            <motion.div
+              key="direct-codes-tab"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="max-w-4xl w-full mx-auto space-y-6"
+            >
+              {/* Header Panel */}
+              <div className="bg-[#0d0d14]/90 backdrop-blur-xl border border-red-950/30 rounded-3xl p-6 md:p-8 relative overflow-hidden shadow-2xl">
+                <div className="absolute top-0 right-0 w-[150px] h-[150px] bg-red-600/5 blur-[50px] pointer-events-none rounded-full" />
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                  <div>
+                    <h2 className="text-2xl font-bold tracking-tight text-white mb-2 font-display flex items-center gap-3">
+                      <Flame className="w-7 h-7 text-red-500 animate-pulse" />
+                      DIRECT CODES PATTERNS
+                    </h2>
+                    <p className="text-xs md:text-sm text-slate-400 max-w-xl leading-relaxed">
+                      Zero manual efforts. Upload <span className="text-red-400 font-mono font-semibold">Dump.cs</span> and <span className="text-red-400 font-mono font-semibold">libil2cpp.so</span>. Automatically extract offsets, read underlying binary bytes, and formulate instant patches.
+                    </p>
+                  </div>
+                  {directView !== 'upload' && (
+                    <button
+                      onClick={handleDirectReset}
+                      className="px-4 py-2 border border-red-500/20 hover:border-red-500/40 bg-red-950/10 hover:bg-red-950/30 text-red-400 hover:text-red-300 rounded-xl text-xs font-bold tracking-wider font-display transition-all cursor-pointer flex items-center gap-1.5 uppercase animate-fade-in"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Reset Panel
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* VIEW state 1: UPLOAD SCREEN */}
+              {directView === 'upload' && (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* DUMP.CS DRAG DROP ZONE */}
+                    <div
+                      onDragOver={handleDirectDumpDragOver}
+                      onDragLeave={handleDirectDumpDragLeave}
+                      onDrop={handleDirectDumpDrop}
+                      className={`bg-[#0d0d14]/90 backdrop-blur-xl border rounded-3xl p-8 text-center relative overflow-hidden transition-all duration-300 shadow-xl ${
+                        isDirectDraggingDump
+                          ? 'border-red-500 bg-red-500/5 shadow-[0_0_40px_rgba(239,68,68,0.15)] scale-[1.01]'
+                          : 'border-red-950/30 hover:border-red-500/20'
+                      }`}
+                    >
+                      {/* Drag overlay */}
+                      <div className={`absolute inset-0 bg-[#08080c]/90 z-20 flex flex-col items-center justify-center transition-opacity duration-300 pointer-events-none ${isDirectDraggingDump ? 'opacity-100' : 'opacity-0'}`}>
+                        <Upload className="w-12 h-12 text-red-500 mb-2 animate-bounce" />
+                        <p className="text-sm font-bold text-red-400 font-display">Drop Dump.cs here</p>
+                      </div>
+
+                      <div className="w-14 h-14 bg-red-950/10 border border-red-500/10 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-[0_0_15px_rgba(239,68,68,0.05)]">
+                        <FileCode className="w-6 h-6 text-red-500" />
+                      </div>
+
+                      <h3 className="text-sm font-bold tracking-wider text-slate-200 mb-2 font-display uppercase">DUMP.CS FILE</h3>
+                      <p className="text-xs text-slate-500 mb-6 max-w-xs mx-auto leading-relaxed">
+                        Contains metadata, namespaces, and RVAs of core modules.
+                      </p>
+
+                      {directDumpFileName ? (
+                        <div className="bg-[#050508]/80 border border-green-500/20 rounded-xl p-3.5 flex items-center justify-between gap-3 text-left max-w-xs mx-auto">
+                          <div className="min-w-0 flex-grow">
+                            <p className="text-xs font-bold text-green-400 truncate">{directDumpFileName}</p>
+                            <p className="text-[10px] text-slate-500 font-mono mt-0.5">{(directDumpFileSize / 1024 / 1024).toFixed(2)} MB</p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setDirectDumpFile(null);
+                              setDirectDumpFileName('');
+                              setDirectDumpFileSize(0);
+                              setDirectDumpContent('');
+                            }}
+                            className="text-slate-500 hover:text-red-400 transition-colors p-1"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={triggerDirectDumpBrowser}
+                          className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-red-500/20 text-xs font-bold tracking-wider text-slate-300 hover:text-white rounded-xl transition-all font-display cursor-pointer uppercase"
+                        >
+                          Select Dump.cs
+                        </button>
+                      )}
+
+                      <input
+                        type="file"
+                        ref={directDumpInputRef}
+                        onChange={handleDirectDumpFileChange}
+                        accept=".cs,.txt"
+                        className="hidden"
+                      />
+                    </div>
+
+                    {/* LIBIL2CPP.SO DRAG DROP ZONE */}
+                    <div
+                      onDragOver={handleDirectSoDragOver}
+                      onDragLeave={handleDirectSoDragLeave}
+                      onDrop={handleDirectSoDrop}
+                      className={`bg-[#0d0d14]/90 backdrop-blur-xl border rounded-3xl p-8 text-center relative overflow-hidden transition-all duration-300 shadow-xl ${
+                        isDirectDraggingSo
+                          ? 'border-red-500 bg-red-500/5 shadow-[0_0_40px_rgba(239,68,68,0.15)] scale-[1.01]'
+                          : 'border-red-950/30 hover:border-red-500/20'
+                      }`}
+                    >
+                      {/* Drag overlay */}
+                      <div className={`absolute inset-0 bg-[#08080c]/90 z-20 flex flex-col items-center justify-center transition-opacity duration-300 pointer-events-none ${isDirectDraggingSo ? 'opacity-100' : 'opacity-0'}`}>
+                        <Upload className="w-12 h-12 text-red-500 mb-2 animate-bounce" />
+                        <p className="text-sm font-bold text-red-400 font-display">Drop libil2cpp.so here</p>
+                      </div>
+
+                      <div className="w-14 h-14 bg-red-950/10 border border-red-500/10 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-[0_0_15px_rgba(239,68,68,0.05)]">
+                        <Binary className="w-6 h-6 text-red-500" />
+                      </div>
+
+                      <h3 className="text-sm font-bold tracking-wider text-slate-200 mb-2 font-display uppercase">LIBIL2CPP.SO BINARY</h3>
+                      <p className="text-xs text-slate-500 mb-6 max-w-xs mx-auto leading-relaxed">
+                        Underlying compiled executable library used to query real code bytes.
+                      </p>
+
+                      {directSoFileName ? (
+                        <div className="bg-[#050508]/80 border border-green-500/20 rounded-xl p-3.5 flex items-center justify-between gap-3 text-left max-w-xs mx-auto">
+                          <div className="min-w-0 flex-grow">
+                            <p className="text-xs font-bold text-green-400 truncate">{directSoFileName}</p>
+                            <p className="text-[10px] text-slate-500 font-mono mt-0.5">{(directSoFileSize / 1024 / 1024).toFixed(2)} MB</p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setDirectSoFile(null);
+                              setDirectSoFileName('');
+                              setDirectSoFileSize(0);
+                            }}
+                            className="text-slate-500 hover:text-red-400 transition-colors p-1"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={triggerDirectSoBrowser}
+                          className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-red-500/20 text-xs font-bold tracking-wider text-slate-300 hover:text-white rounded-xl transition-all font-display cursor-pointer uppercase"
+                        >
+                          Select libil2cpp.so
+                        </button>
+                      )}
+
+                      <input
+                        type="file"
+                        ref={directSoInputRef}
+                        onChange={handleDirectSoFileChange}
+                        accept=".so"
+                        className="hidden"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Actions Area */}
+                  <div className="bg-[#0d0d14]/90 backdrop-blur-xl border border-red-950/20 rounded-3xl p-6 text-center space-y-4">
+                    <p className="text-xs text-slate-400 max-w-md mx-auto">
+                      For automated workflow, upload your <span className="text-red-400 font-semibold">Dump.cs</span> and optionally <span className="text-red-400 font-semibold">libil2cpp.so</span> binary file, then initiate the automated integration scan.
+                    </p>
+                    <div className="flex justify-center">
+                      <button
+                        onClick={() => {
+                          if (!directDumpContent) {
+                            setDirectErrorMessage('Please select or upload Dump.cs first!');
+                            return;
+                          }
+                          startDirectScanning(directDumpContent, directDumpFileName, directDumpFileSize, directSoFile, false);
+                        }}
+                        disabled={!directDumpFileName}
+                        className={`px-8 py-3 text-xs font-bold tracking-wider uppercase rounded-xl font-display transition-all flex items-center justify-center gap-2 ${
+                          directDumpFileName
+                            ? 'bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white cursor-pointer shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:scale-[1.01]'
+                            : 'bg-slate-900 border border-slate-800 text-slate-500 cursor-not-allowed'
+                        }`}
+                      >
+                        <Flame className="w-4 h-4" />
+                        <span>Run Automated Integration Scan</span>
+                      </button>
+                    </div>
+
+                    {directErrorMessage && (
+                      <p className="text-xs text-red-400 font-mono font-semibold">{directErrorMessage}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* VIEW state 2: SCANNING SCREEN */}
+              {directView === 'scanning' && (
+                <div className="bg-[#0d0d14]/90 backdrop-blur-xl border border-red-950/20 rounded-3xl p-12 text-center space-y-6">
+                  <div className="relative w-20 h-20 mx-auto">
+                    <div className="absolute inset-0 border-4 border-red-500/10 rounded-full" />
+                    <div className="absolute inset-0 border-4 border-red-500 border-t-transparent rounded-full animate-spin" />
+                    <Flame className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 text-red-500 animate-pulse" />
+                  </div>
+
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-bold text-white font-display uppercase tracking-wider">Integrating Dump & Binaries...</h3>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+                      Automatically correlating structure mappings, matching offsets, and reading direct assembly codes.
+                    </p>
+                  </div>
+
+                  <div className="max-w-xs mx-auto space-y-2">
+                    <div className="w-full bg-[#050508] border border-red-950/20 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="bg-red-500 h-full transition-all duration-100 ease-out"
+                        style={{ width: `${directScanProgress}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-slate-500 font-mono uppercase">
+                      <span>Analyzing</span>
+                      <span>{directScanProgress}%</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* VIEW state 3: RESULTS GRID */}
+              {directView === 'results' && (
+                <div className="space-y-6">
+                  {/* Stats banner */}
+                  <div className="bg-[#0c0c12]/60 backdrop-blur-md border border-red-950/25 rounded-2xl p-4 flex flex-wrap justify-between items-center gap-4 text-xs font-mono uppercase text-slate-400">
+                    <div className="flex items-center gap-2">
+                      <FileCheck2 className="w-4 h-4 text-green-400" />
+                      <span>Dump scan speed: <strong className="text-red-400">{directScanTime} ms</strong></span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                      <span>Loaded: <strong className="text-slate-200">{directResults.length} Patches Detected</strong></span>
+                    </div>
+                    <div>
+                      <span>Binaries: <strong className="text-slate-200">{isDirectDemo ? 'Demo (Sandbox)' : directSoFileName}</strong></span>
+                    </div>
+                  </div>
+
+                  {directResults.length === 0 ? (
+                    <div className="bg-[#0d0d14]/90 backdrop-blur-xl border border-red-950/20 rounded-3xl p-12 text-center space-y-4">
+                      <Info className="w-12 h-12 text-slate-600 mx-auto" />
+                      <h4 className="text-sm font-bold text-slate-300 font-display uppercase tracking-wide">No compatible methods found</h4>
+                      <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
+                        Ensure the uploaded Dump.cs file matches the game structure and contains standard mapping declarations.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                      {directResults.map((result, idx) => (
+                        <motion.div
+                          key={idx}
+                          whileHover={{ scale: 1.02, translateY: -2 }}
+                          onClick={() => handleSelectFeatureForDirectCode(result)}
+                          className="bg-[#0d0d14]/90 backdrop-blur-xl border border-red-950/25 hover:border-red-500/30 rounded-2xl p-5 shadow-lg cursor-pointer transition-all relative overflow-hidden group flex flex-col justify-between min-h-[140px]"
+                        >
+                          <div className="absolute top-0 right-0 w-[80px] h-[80px] bg-red-600/5 blur-[30px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <div>
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <span className="text-[9px] bg-red-500/10 border border-red-500/20 text-red-400 px-2 py-0.5 rounded-full font-mono font-bold uppercase tracking-wider">
+                                {result.type}
+                              </span>
+                              <span className="text-[10px] text-slate-500 font-mono">{result.rva}</span>
+                            </div>
+                            <h4 className="text-sm font-bold text-white group-hover:text-red-400 font-display transition-colors mb-1">
+                              {result.featureName}
+                            </h4>
+                          </div>
+                          <div className="text-[10px] text-slate-500 font-mono truncate border-t border-red-950/10 pt-2.5 mt-2 flex justify-between items-center">
+                            <span className="truncate">{result.funcName}</span>
+                            <span className="text-red-500 text-xs font-bold group-hover:translate-x-1 transition-transform">→</span>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* VIEW state 4: FUNCTION DETAILS & PATCH MAKER */}
+              {directView === 'details' && directSelectedFeature && (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Left Column: Code viewer & parameters */}
+                  <div className="lg:col-span-2 space-y-6">
+                    <div className="bg-[#0d0d14]/90 backdrop-blur-xl border border-red-950/25 rounded-3xl p-6 md:p-8 space-y-6 shadow-2xl relative overflow-hidden">
+                      {/* Inner glowing accent */}
+                      <div className="absolute top-0 left-0 w-[120px] h-[120px] bg-red-600/5 blur-[40px] pointer-events-none rounded-full" />
+
+                      {/* Detail Header */}
+                      <div className="flex justify-between items-start gap-4 border-b border-red-950/10 pb-5">
+                        <div>
+                          <span className="text-[9px] bg-red-500/10 border border-red-500/20 text-red-400 px-2 py-0.5 rounded-full font-mono font-bold uppercase tracking-wider mb-2 inline-block">
+                            {directSelectedFeature.type.toUpperCase()} PRESET
+                          </span>
+                          <h3 className="text-lg font-bold text-white font-display">
+                            {directSelectedFeature.featureName}
+                          </h3>
+                          <p className="text-xs text-slate-500 font-mono mt-1">
+                            Offset Address: <span className="text-slate-300 font-bold">{directSelectedFeature.rva}</span>
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setDirectView('results')}
+                          className="px-3.5 py-1.5 bg-[#050508] border border-red-950/20 hover:border-red-500/30 text-slate-400 hover:text-white rounded-xl text-xs font-bold tracking-wider font-display transition-all cursor-pointer flex items-center gap-1 uppercase"
+                        >
+                          <ArrowLeft className="w-3.5 h-3.5" /> Back
+                        </button>
+                      </div>
+
+                      {/* Code Block 1: Search Code (Extracted automatically) */}
+                      <div className="space-y-2.5">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase font-mono flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                            Search Code (Real Binary Bytes from Offset)
+                          </span>
+                          <span className="text-[10px] text-slate-500 font-mono">48 Bytes (ARM Instructions)</span>
+                        </div>
+                        <div className="bg-[#050508] border border-red-950/20 rounded-2xl p-5 relative group">
+                          {directSearchCode ? (
+                            <pre className="text-[11px] sm:text-xs font-mono text-slate-300 leading-relaxed break-all whitespace-pre-wrap select-all uppercase tracking-wider">
+                              {directSearchCode}
+                            </pre>
+                          ) : (
+                            <div className="flex items-center gap-2 text-xs text-slate-600 font-mono py-1.5">
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                              <span>Reading from {isDirectDemo ? 'Sandbox' : 'libil2cpp.so'}...</span>
+                            </div>
+                          )}
+                          <button
+                            onClick={handleCopySearchCode}
+                            disabled={!directSearchCode}
+                            className="absolute right-3.5 top-3.5 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 border border-slate-800 hover:border-red-500/30 p-2 rounded-xl text-slate-400 hover:text-white transition-all cursor-pointer"
+                            title="Copy Search Code"
+                          >
+                            {directCopiedFeedback === 'search' ? (
+                              <Check className="w-3.5 h-3.5 text-green-500" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Code Block 2: Replace Code (Generated automatically) */}
+                      <div className="space-y-2.5">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase font-mono flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                            Generated Replace Code (Direct Patched)
+                          </span>
+                          <span className="text-[10px] text-green-400 font-mono font-bold flex items-center gap-1">
+                            ✓ Auto-Calculated
+                          </span>
+                        </div>
+                        <div className="bg-[#050508] border border-red-950/20 rounded-2xl p-5 relative group overflow-hidden">
+                          {/* Left highlight wrapper */}
+                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-green-500/40" />
+
+                          {directReplaceCode ? (
+                            <div className="text-[11px] sm:text-xs font-mono leading-relaxed break-all whitespace-pre-wrap tracking-wider uppercase">
+                              {/* Highlight changed starting bytes */}
+                              <span className="text-green-400 font-bold bg-green-500/10 border border-green-500/20 rounded px-1.5 py-0.5 mr-1.5 inline-block">
+                                {directSelectedPatchHex}
+                              </span>
+                              <span className="text-slate-500">
+                                {directReplaceCode.slice(directSelectedPatchHex.length).trim()}
+                              </span>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-slate-600 font-mono italic">Waiting for patch selection...</p>
+                          )}
+
+                          <button
+                            onClick={handleCopyReplaceCode}
+                            disabled={!directReplaceCode}
+                            className="absolute right-3.5 top-3.5 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 border border-slate-800 hover:border-green-500/30 p-2 rounded-xl text-slate-400 hover:text-white transition-all cursor-pointer"
+                            title="Copy Replace Code"
+                          >
+                            {directCopiedFeedback === 'replace' ? (
+                              <Check className="w-3.5 h-3.5 text-green-500" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-slate-500 leading-relaxed font-sans mt-1">
+                          Only the initial <span className="text-green-400 font-semibold">{directSelectedPatchHex.split(' ').length} bytes</span> of assembly are substituted. All remaining structure bytes are preserved exactly.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Patch Control & Presets */}
+                  <div className="space-y-6">
+                    {/* Patch Selector Box */}
+                    <div className="bg-[#0d0d14]/90 backdrop-blur-xl border border-red-950/25 rounded-3xl p-6 shadow-2xl space-y-6">
+                      <div>
+                        <h4 className="text-xs font-bold tracking-widest uppercase text-white font-display border-b border-red-950/10 pb-3 mb-4 flex items-center gap-2">
+                          <Binary className="w-4 h-4 text-red-500" />
+                          PATCH SELECTOR
+                        </h4>
+
+                        {/* Patch type toggle */}
+                        <div className="grid grid-cols-3 gap-1 bg-[#050508] border border-red-950/10 rounded-xl p-1 mb-5">
+                          {(['boolean', 'integer', 'float'] as const).map((pType) => (
+                            <button
+                              key={pType}
+                              onClick={() => {
+                                setDirectPatchType(pType);
+                                if (pType === 'boolean') {
+                                  setDirectSelectedPatchValue('TRUE');
+                                  setDirectSelectedPatchHex('01 00 A0 E3 1E FF 2F E1');
+                                } else if (pType === 'integer') {
+                                  setDirectSelectedPatchValue('100');
+                                  setDirectSelectedPatchHex('64 00 AA E3 1E FF 2F E1');
+                                } else if (pType === 'float') {
+                                  setDirectSelectedPatchValue('1.0');
+                                  setDirectSelectedPatchHex('00 00 80 3F 1E FF 2F E1');
+                                }
+                              }}
+                              className={`py-2 text-[10px] font-bold tracking-wider font-display uppercase rounded-lg transition-all cursor-pointer ${
+                                directPatchType === pType
+                                  ? 'bg-red-500/10 border border-red-500/20 text-red-400 shadow'
+                                  : 'border border-transparent text-slate-500 hover:text-slate-300'
+                              }`}
+                            >
+                              {pType}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Presets Grid */}
+                        <div className="space-y-3">
+                          <p className="text-[10px] text-slate-500 font-mono uppercase tracking-wider">Select Preset Value:</p>
+
+                          {directPatchType === 'boolean' && (
+                            <div className="space-y-2.5">
+                              {DIRECT_BOOLEAN_PATCHES.map((preset) => (
+                                <button
+                                  key={preset.value}
+                                  onClick={() => {
+                                    setDirectSelectedPatchValue(preset.value);
+                                    setDirectSelectedPatchHex(preset.hex);
+                                  }}
+                                  className={`w-full p-3 text-left border rounded-xl font-mono text-xs transition-all flex justify-between items-center cursor-pointer ${
+                                    directSelectedPatchValue === preset.value
+                                      ? 'bg-red-500/5 border-red-500/40 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.05)] font-bold'
+                                      : 'bg-[#050508]/40 border-red-950/20 hover:border-red-950/40 text-slate-300'
+                                  }`}
+                                >
+                                  <span>{preset.value}</span>
+                                  <span className="text-[10px] text-slate-500">{preset.hex.split(' ').slice(0, 4).join(' ')}...</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+
+                          {directPatchType === 'integer' && (
+                            <div className="space-y-2.5">
+                              {DIRECT_INTEGER_PATCHES.map((preset) => (
+                                <button
+                                  key={preset.value}
+                                  onClick={() => {
+                                    setDirectSelectedPatchValue(preset.value);
+                                    setDirectSelectedPatchHex(preset.hex);
+                                  }}
+                                  className={`w-full p-3 text-left border rounded-xl font-mono text-xs transition-all flex justify-between items-center cursor-pointer ${
+                                    directSelectedPatchValue === preset.value
+                                      ? 'bg-red-500/5 border-red-500/40 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.05)] font-bold'
+                                      : 'bg-[#050508]/40 border-red-950/20 hover:border-red-950/40 text-slate-300'
+                                  }`}
+                                >
+                                  <span>value = {preset.value}</span>
+                                  <span className="text-[10px] text-slate-500">{preset.hex.split(' ').slice(0, 4).join(' ')}...</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+
+                          {directPatchType === 'float' && (
+                            <div className="space-y-2.5">
+                              {DIRECT_FLOAT_PATCHES.map((preset) => (
+                                <button
+                                  key={preset.value}
+                                  onClick={() => {
+                                    setDirectSelectedPatchValue(preset.value);
+                                    setDirectSelectedPatchHex(preset.hex);
+                                  }}
+                                  className={`w-full p-3 text-left border rounded-xl font-mono text-xs transition-all flex justify-between items-center cursor-pointer ${
+                                    directSelectedPatchValue === preset.value
+                                      ? 'bg-red-500/5 border-red-500/40 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.05)] font-bold'
+                                      : 'bg-[#050508]/40 border-red-950/20 hover:border-red-950/40 text-slate-300'
+                                  }`}
+                                >
+                                  <span>value = {preset.value}f</span>
+                                  <span className="text-[10px] text-slate-500">{preset.hex.split(' ').slice(0, 4).join(' ')}...</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Action buttons footer */}
+                      <div className="space-y-2.5 pt-4 border-t border-red-950/10">
+                        <button
+                          onClick={handleCopyEverything}
+                          className="w-full py-3 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white font-bold text-xs font-display tracking-wider rounded-xl uppercase transition-all shadow-[0_0_20px_rgba(239,68,68,0.2)] hover:scale-[1.01] cursor-pointer flex items-center justify-center gap-1.5"
+                        >
+                          {directCopiedFeedback === 'everything' ? (
+                            <>
+                              <Check className="w-4 h-4" />
+                              <span>Copied Everything!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-4 h-4" />
+                              <span>Copy Everything</span>
+                            </>
+                          )}
+                        </button>
+                        <p className="text-[9px] text-slate-500 font-mono text-center uppercase tracking-wider">
+                          Copies feature info, RVA, search & replace codes!
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Metadata summary */}
+                    <div className="bg-[#0c0c12]/60 border border-red-950/20 rounded-2xl p-5 text-xs text-slate-400 leading-relaxed space-y-1.5 font-mono">
+                      <p className="text-white font-bold uppercase tracking-wide border-b border-red-950/20 pb-2 mb-2 font-display">
+                        INTEGRATED FLOW INFO
+                      </p>
+                      <p>FILE: <span className="text-slate-300">{directDumpFileName}</span></p>
+                      <p>RVA BASE: <span className="text-red-400 font-bold">{directSelectedFeature.rva}</span></p>
+                      <p>FUNCTION: <span className="text-slate-300">{directSelectedFeature.funcName}</span></p>
+                      <p>BYTES: <span className="text-green-400 font-bold">48 (STABILIZED)</span></p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* VIEW 7: AIMBOT AI FINDER TAB */}
+          {activeTab === 'aimbot' && (
+            <motion.div
+              key="aimbot-tab"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="max-w-4xl w-full mx-auto space-y-6"
+            >
+              {/* Header Panel */}
+              <div className="bg-[#0d0d14]/90 backdrop-blur-xl border border-red-950/30 rounded-3xl p-6 md:p-8 relative overflow-hidden shadow-2xl">
+                <div className="absolute top-0 right-0 w-[150px] h-[150px] bg-red-600/5 blur-[50px] pointer-events-none rounded-full" />
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                  <div>
+                    <h2 className="text-2xl font-bold tracking-tight text-white mb-2 font-display flex items-center gap-3">
+                      <Crosshair className="w-7 h-7 text-red-500 animate-pulse" />
+                      AIMBOT AI FINDER
+                    </h2>
+                    <p className="text-xs md:text-sm text-slate-400 max-w-xl leading-relaxed">
+                      Formulate advanced offset conversions. Convert BASIC offsets to AI READ outputs and calculate dynamic memory WRITE patches in real-time.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Grid of Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* CARD 1: BASIC -> AI READ */}
+                <div className="bg-[#0d0d14]/90 backdrop-blur-xl border border-red-950/25 rounded-3xl p-6 md:p-8 relative overflow-hidden shadow-2xl flex flex-col justify-between">
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3 border-b border-red-950/20 pb-4">
+                      <div className="w-10 h-10 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-center">
+                        <Activity className="w-5 h-5 text-red-500" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold tracking-widest text-slate-200 font-display uppercase">BASIC ➜ AI READ</h3>
+                        <p className="text-[10px] text-slate-500 font-mono">Weapon & Recoil Structural Solver</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold tracking-wider text-slate-400 uppercase font-mono block">
+                          Basic Offset
+                        </label>
+                        <input
+                          type="text"
+                          value={aimbotBasicOffsetInput}
+                          onChange={(e) => setAimbotBasicOffsetInput(e.target.value)}
+                          placeholder="e.g. 0xAC"
+                          className="w-full px-4 py-3 bg-[#050508]/80 border border-red-950/30 focus:border-red-500/50 rounded-xl text-slate-200 placeholder-slate-600 text-sm font-mono tracking-wider transition-all focus:outline-none"
+                        />
+                      </div>
+
+                      {aimbotBasicError && (
+                        <p className="text-[10px] text-red-400 font-mono font-semibold">
+                          ⚠️ {aimbotBasicError}
+                        </p>
+                      )}
+
+                      {/* Display calculations list or dynamic output */}
+                      <div className="bg-[#050508]/60 border border-red-950/10 rounded-2xl p-4 min-h-[100px] flex flex-col justify-center relative overflow-hidden">
+                        {isAimbotBasicCalculating ? (
+                          <div className="flex flex-col items-center justify-center gap-3 py-4">
+                            <RefreshCw className="w-6 h-6 text-red-500 animate-spin" />
+                            <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">
+                              Solving Constants...
+                            </span>
+                          </div>
+                        ) : aimbotBasicOffsetResult ? (
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center">
+                              <span className="text-[10px] font-bold text-slate-500 font-mono uppercase tracking-wider">AI READ Offset Output</span>
+                              <span className="text-[9px] bg-green-500/10 border border-green-500/20 text-green-400 px-2 py-0.5 rounded-full font-mono font-bold uppercase tracking-wider">
+                                Dynamic Success
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between bg-[#08080c]/80 border border-red-500/20 rounded-xl p-3">
+                              <span className="text-sm font-mono font-bold text-red-400 tracking-wider">
+                                {aimbotBasicOffsetResult}
+                              </span>
+                              <button
+                                onClick={handleAimbotBasicCopy}
+                                className="p-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-red-500/30 rounded-lg text-slate-400 hover:text-white transition-all cursor-pointer"
+                                title="Copy Result"
+                              >
+                                {aimbotBasicCopied ? (
+                                  <Check className="w-3.5 h-3.5 text-green-500" />
+                                ) : (
+                                  <Copy className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-4">
+                            <p className="text-[10px] text-slate-600 font-mono italic">
+                              Input Basic Offset and click Find to calculate AI READ.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 mt-6">
+                    <div className="flex gap-3">
+                      <button
+                        onClick={handleAimbotBasicCalculate}
+                        disabled={isAimbotBasicCalculating}
+                        className="flex-grow py-3 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 disabled:opacity-55 text-white font-bold text-xs font-display tracking-wider rounded-xl uppercase transition-all shadow-[0_0_15px_rgba(239,68,68,0.2)] hover:scale-[1.01] cursor-pointer"
+                      >
+                        Find Offset
+                      </button>
+                      <button
+                        onClick={handleAimbotBasicClear}
+                        className="px-4 py-3 bg-slate-950 border border-red-500/20 hover:border-red-500/40 text-red-400 hover:text-red-300 text-xs font-bold tracking-wider uppercase rounded-xl font-display transition-all cursor-pointer"
+                        title="Clear Inputs"
+                      >
+                        Clear
+                      </button>
+                    </div>
+
+
+                  </div>
+                </div>
+
+                {/* CARD 2: WRITE FINDER */}
+                <div className="bg-[#0d0d14]/90 backdrop-blur-xl border border-red-950/25 rounded-3xl p-6 md:p-8 relative overflow-hidden shadow-2xl flex flex-col justify-between">
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3 border-b border-red-950/20 pb-4">
+                      <div className="w-10 h-10 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-center">
+                        <Terminal className="w-5 h-5 text-red-500" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold tracking-widest text-slate-200 font-display uppercase">WRITE FINDER</h3>
+                        <p className="text-[10px] text-slate-500 font-mono">Collider & Memory Write Solvers</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold tracking-wider text-slate-400 uppercase font-mono block">
+                            Collider Offset
+                          </label>
+                          <input
+                            type="text"
+                            value={aimbotColliderOffsetInput}
+                            onChange={(e) => setAimbotColliderOffsetInput(e.target.value)}
+                            placeholder="e.g. 0x458"
+                            className="w-full px-4 py-3 bg-[#050508]/80 border border-red-950/30 focus:border-red-500/50 rounded-xl text-slate-200 placeholder-slate-600 text-sm font-mono tracking-wider transition-all focus:outline-none"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold tracking-wider text-slate-400 uppercase font-mono block">
+                            AI READ Offset
+                          </label>
+                          <input
+                            type="text"
+                            value={aimbotAiReadOffsetInput}
+                            onChange={(e) => setAimbotAiReadOffsetInput(e.target.value)}
+                            placeholder="e.g. 0xF4"
+                            className="w-full px-4 py-3 bg-[#050508]/80 border border-red-950/30 focus:border-red-500/50 rounded-xl text-slate-200 placeholder-slate-600 text-sm font-mono tracking-wider transition-all focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      {aimbotWriteError && (
+                        <p className="text-[10px] text-red-400 font-mono font-semibold">
+                          ⚠️ {aimbotWriteError}
+                        </p>
+                      )}
+
+                      {/* Display result */}
+                      <div className="bg-[#050508]/60 border border-red-950/10 rounded-2xl p-4 min-h-[100px] flex flex-col justify-center relative overflow-hidden">
+                        {isAimbotWriteCalculating ? (
+                          <div className="flex flex-col items-center justify-center gap-3 py-4">
+                            <RefreshCw className="w-6 h-6 text-red-500 animate-spin" />
+                            <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">
+                              Formulating Write Patch...
+                            </span>
+                          </div>
+                        ) : aimbotWriteOffsetResult ? (
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center">
+                              <span className="text-[10px] font-bold text-slate-500 font-mono uppercase tracking-wider">WRITE Offset Output</span>
+                              <span className="text-[9px] bg-green-500/10 border border-green-500/20 text-green-400 px-2 py-0.5 rounded-full font-mono font-bold uppercase tracking-wider">
+                                dynamic calculated
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between bg-[#08080c]/80 border border-red-500/20 rounded-xl p-3">
+                              <span className="text-sm font-mono font-bold text-red-400 tracking-wider">
+                                {aimbotWriteOffsetResult}
+                              </span>
+                              <button
+                                onClick={handleAimbotWriteCopy}
+                                className="p-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-red-500/30 rounded-lg text-slate-400 hover:text-white transition-all cursor-pointer"
+                                title="Copy Result"
+                              >
+                                {aimbotWriteCopied ? (
+                                  <Check className="w-3.5 h-3.5 text-green-500" />
+                                ) : (
+                                  <Copy className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-4">
+                            <p className="text-[10px] text-slate-600 font-mono italic">
+                              Input Collider & AI READ Offsets and click Find to calculate WRITE offset.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 mt-6">
+                    <div className="flex gap-3">
+                      <button
+                        onClick={handleAimbotWriteCalculate}
+                        disabled={isAimbotWriteCalculating}
+                        className="flex-grow py-3 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 disabled:opacity-55 text-white font-bold text-xs font-display tracking-wider rounded-xl uppercase transition-all shadow-[0_0_15px_rgba(239,68,68,0.2)] hover:scale-[1.01] cursor-pointer"
+                      >
+                        Find Offset
+                      </button>
+                      <button
+                        onClick={handleAimbotWriteClear}
+                        className="px-4 py-3 bg-slate-950 border border-red-500/20 hover:border-red-500/40 text-red-400 hover:text-red-300 text-xs font-bold tracking-wider uppercase rounded-xl font-display transition-all cursor-pointer"
+                        title="Clear Inputs"
+                      >
+                        Clear
+                      </button>
+                    </div>
+
+
+                  </div>
+                </div>
+
+              </div>
+            </motion.div>
+          )}
+
+        </AnimatePresence>
+
+      </main>
+
+      {/* Footer bar */}
+      <footer className="mt-auto border-t border-red-950/20 bg-[#0d0d12]/50 py-5 px-6 flex flex-col sm:flex-row justify-between items-center gap-4 text-[10px] text-slate-600 font-mono uppercase tracking-widest">
+        <div className="flex flex-wrap justify-center gap-6">
+          <span>PIPELINE: SINGLE-SECTION FUNCTION</span>
+          <span>SYSTEM ENGINE: STABILIZED</span>
+          <span>BUFFER: CACHED-MEMORY</span>
+        </div>
+        <div className="text-center sm:text-right">
+          CLIENT EXECUTED ONLY • LOCAL DUMP PARSER
+        </div>
+      </footer>
+
+      {/* DETAILS PANEL / MODAL */}
+      <AnimatePresence>
+        {selectedFeatureForModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 sm:p-6 md:p-10"
+            onClick={() => setSelectedFeatureForModal(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 20, opacity: 0 }}
+              transition={{ type: 'spring', duration: 0.4 }}
+              className="bg-[#09090d] border border-red-500/30 rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-[0_0_50px_rgba(239,68,68,0.15)] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="border-b border-red-950/25 p-5 flex items-start justify-between bg-[#0e0e14]/90">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[9px] font-mono px-2 py-0.5 border rounded-md font-bold uppercase ${
+                      modalType === 'bool' ? 'bg-[#ff0055]/10 border-[#ff0055]/25 text-[#ff4477]' :
+                      modalType === 'int' ? 'bg-[#0077ff]/10 border-[#0077ff]/25 text-[#4499ff]' :
+                      modalType === 'float' ? 'bg-[#ffaa00]/10 border-[#ffaa00]/25 text-[#ffcc44]' :
+                      'bg-red-500/10 border-red-500/20 text-red-400'
+                    }`}>
+                      {modalType.toUpperCase()}
+                    </span>
+                    <h3 className="text-sm sm:text-base font-bold text-white font-display tracking-wide">
+                      {selectedFeatureForModal}
+                    </h3>
+                  </div>
+                  <p className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">
+                    FUNCTION DETECTED: <span className="text-red-400/80 font-bold">{modalFuncName}</span>
+                  </p>
+                </div>
+                
+                <button
+                  onClick={() => setSelectedFeatureForModal(null)}
+                  className="bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-red-500/40 p-2 rounded-xl transition-all cursor-pointer"
+                  id="close-modal-btn"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Code Area */}
+              <div className="flex-1 overflow-y-auto p-6 bg-[#040407] border-b border-red-950/20 custom-scrollbar select-text">
+                {modalFunctionBody ? (
+                  <div className="relative group/code">
+                    <pre className="font-mono text-xs sm:text-[13px] leading-relaxed whitespace-pre-wrap select-text p-4 rounded-xl bg-[#07070b] border border-red-950/15 min-h-[120px] overflow-auto">
+                      {highlightCSharp(modalFunctionBody)}
+                    </pre>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-slate-500 font-mono text-xs">
+                    <Terminal className="w-8 h-8 text-slate-600 mb-2 animate-pulse" />
+                    <span>COULD NOT LOCATE FUNCTION BODY IN FILE</span>
+                  </div>
+                )}
+
+                {/* RVA & Action Controls */}
+                <div className="mt-6 bg-[#07070b] border border-red-950/20 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-mono text-slate-500 uppercase tracking-wider font-semibold">RVA Offset:</span>
+                    <span className="text-xs sm:text-sm font-bold font-mono text-red-400 drop-shadow-[0_0_4px_rgba(239,68,68,0.3)]">{modalRva}</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    {/* Copy RVA */}
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(modalRva);
+                        setModalCopiedType('rva');
+                        setTimeout(() => setModalCopiedType(null), 1500);
+                      }}
+                      className="text-xs font-semibold uppercase tracking-wider font-display bg-slate-950 border border-slate-800 hover:border-red-500/30 text-slate-400 hover:text-red-300 px-4 py-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
+                      id="copy-rva-btn"
+                    >
+                      {modalCopiedType === 'rva' ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-red-500" />
+                          <span>Copied RVA!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Copy RVA</span>
+                        </>
+                      )}
+                    </button>
+
+                    {/* Copy Function */}
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(modalFunctionBody);
+                        setModalCopiedType('code');
+                        setTimeout(() => setModalCopiedType(null), 1500);
+                      }}
+                      className="text-xs font-bold uppercase tracking-wider font-display bg-red-600 hover:bg-red-500 text-white px-4 py-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shadow-[0_0_15px_rgba(220,38,38,0.3)]"
+                      id="copy-func-btn"
+                    >
+                      {modalCopiedType === 'code' ? (
+                        <>
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Copied Code!</span>
+                        </>
+                      ) : (
+                        <>
+                          <FileCode className="w-3.5 h-3.5" />
+                          <span>Copy Function</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Unified Patches System Section Header */}
+                <div className="mt-8 pt-6 border-t border-red-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-xs font-bold tracking-wider uppercase text-white font-display flex items-center gap-2">
+                      <Binary className="w-4 h-4 text-red-500 animate-pulse" />
+                      PATCH VALUES GENERATOR & PRESETS
+                    </h3>
+                    <p className="text-[10px] text-slate-500 mt-0.5 font-sans">
+                      Select and copy precompiled hex patterns directly.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleCopyAllPatches}
+                    className="self-start sm:self-auto text-[10px] font-bold uppercase tracking-wider font-display bg-red-950/20 hover:bg-red-900/35 border border-red-500/30 hover:border-red-500/50 text-red-400 hover:text-red-300 py-2 px-4 rounded-xl transition-all cursor-pointer flex items-center gap-2 shadow-[0_0_15px_rgba(239,68,68,0.03)]"
+                  >
+                    {modalCopiedType === 'all_patches' ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        <span className="text-emerald-400">All Patches Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Copy All Patches</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* 5. Boolean Patch Values */}
+                <div className="mt-6 space-y-4">
+                  <h4 className="text-xs font-bold tracking-widest uppercase text-red-400 font-display flex items-center gap-2">
+                    <Terminal className="w-3.5 h-3.5 text-red-500 animate-pulse" />
+                    BOOLEAN PATCH VALUES
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* TRUE Patch */}
+                    <div className="bg-[#07070b] border border-red-950/20 rounded-xl p-4 flex flex-col justify-between gap-3 relative group/patch">
+                      <div>
+                        <div className="text-[10px] font-bold font-display tracking-widest text-emerald-400 mb-2 uppercase">
+                          TRUE
+                        </div>
+                        <code className="block font-mono text-xs bg-slate-950/50 p-2.5 rounded-lg border border-slate-900 text-slate-300 break-all select-all">
+                          01 00 A0 E3 1E FF 2F E1
+                        </code>
+                      </div>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText('01 00 A0 E3 1E FF 2F E1');
+                          setModalCopiedType('true');
+                          setTimeout(() => setModalCopiedType(null), 1500);
+                        }}
+                        className="w-full text-[10px] font-bold uppercase tracking-wider font-display bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-red-500/30 text-slate-300 hover:text-white py-2 px-3 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                      >
+                        {modalCopiedType === 'true' ? (
+                          <>
+                            <Check className="w-3 h-3 text-emerald-400" />
+                            <span className="text-emerald-400">Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            <span>Copy TRUE</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* FALSE Patch */}
+                    <div className="bg-[#07070b] border border-red-950/20 rounded-xl p-4 flex flex-col justify-between gap-3 relative group/patch">
+                      <div>
+                        <div className="text-[10px] font-bold font-display tracking-widest text-rose-400 mb-2 uppercase">
+                          FALSE
+                        </div>
+                        <code className="block font-mono text-xs bg-slate-950/50 p-2.5 rounded-lg border border-slate-900 text-slate-300 break-all select-all">
+                          00 00 A0 E3 1E FF 2F E1
+                        </code>
+                      </div>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText('00 00 A0 E3 1E FF 2F E1');
+                          setModalCopiedType('false');
+                          setTimeout(() => setModalCopiedType(null), 1500);
+                        }}
+                        className="w-full text-[10px] font-bold uppercase tracking-wider font-display bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-red-500/30 text-slate-300 hover:text-white py-2 px-3 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                      >
+                        {modalCopiedType === 'false' ? (
+                          <>
+                            <Check className="w-3 h-3 text-rose-400" />
+                            <span className="text-rose-400">Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            <span>Copy FALSE</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 6. Integer Patch Values */}
+                <div className="mt-8 space-y-4">
+                  <h4 className="text-xs font-bold tracking-widest uppercase text-red-400 font-display flex items-center gap-2">
+                    <Terminal className="w-3.5 h-3.5 text-red-500 animate-pulse" />
+                    INTEGER PATCH VALUES
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {INT_PATCH_VALUES.map((item, idx) => (
+                      <div key={idx} className="bg-[#07070b] border border-red-950/20 rounded-xl p-4 flex flex-col justify-between gap-3 relative group/patch">
+                        <div>
+                          <div className="text-[10px] font-bold font-display tracking-widest text-blue-400 mb-2 uppercase">
+                            VALUE: {item.decimal}
+                          </div>
+                          <code className="block font-mono text-xs bg-slate-950/50 p-2.5 rounded-lg border border-slate-900 text-slate-300 break-all select-all">
+                            {item.hex}
+                          </code>
+                        </div>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(item.hex);
+                            setModalCopiedType(`int_val_${idx}`);
+                            setTimeout(() => setModalCopiedType(null), 1500);
+                          }}
+                          className="w-full text-[10px] font-bold uppercase tracking-wider font-display bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-red-500/30 text-slate-300 hover:text-white py-2 px-3 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                        >
+                          {modalCopiedType === `int_val_${idx}` ? (
+                            <>
+                              <Check className="w-3 h-3 text-emerald-400" />
+                              <span className="text-emerald-400">Copied!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3 h-3" />
+                              <span>Copy {item.decimal}</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 7. Float Patch Values */}
+                <div className="mt-8 space-y-4">
+                  <h4 className="text-xs font-bold tracking-widest uppercase text-red-400 font-display flex items-center gap-2">
+                    <Terminal className="w-3.5 h-3.5 text-red-500 animate-pulse" />
+                    FLOAT PATCH VALUES
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {FLOAT_PATCH_VALUES.map((item, idx) => (
+                      <div key={idx} className="bg-[#07070b] border border-red-950/20 rounded-xl p-4 flex flex-col justify-between gap-3 relative group/patch">
+                        <div>
+                          <div className="text-[10px] font-bold font-display tracking-widest text-amber-500 mb-2 uppercase">
+                            VALUE: {item.value}
+                          </div>
+                          <code className="block font-mono text-xs bg-slate-950/50 p-2.5 rounded-lg border border-slate-900 text-slate-300 break-all select-all">
+                            {item.hex}
+                          </code>
+                        </div>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(item.hex);
+                            setModalCopiedType(`float_val_${idx}`);
+                            setTimeout(() => setModalCopiedType(null), 1500);
+                          }}
+                          className="w-full text-[10px] font-bold uppercase tracking-wider font-display bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-red-500/30 text-slate-300 hover:text-white py-2 px-3 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                        >
+                          {modalCopiedType === `float_val_${idx}` ? (
+                            <>
+                              <Check className="w-3 h-3 text-emerald-400" />
+                              <span className="text-emerald-400">Copied!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3 h-3" />
+                              <span>Copy {item.value}</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons Footer */}
+              <div className="p-5 bg-[#0e0e14]/90 flex items-center justify-end">
+                <button
+                  onClick={() => setSelectedFeatureForModal(null)}
+                  className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-red-500/30 text-slate-300 hover:text-white rounded-xl text-xs font-bold tracking-wider font-display transition-all cursor-pointer flex items-center gap-1.5 uppercase"
+                >
+                  Close Modal
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
+    </div>
+  );
+}
